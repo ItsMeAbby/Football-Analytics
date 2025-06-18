@@ -74,35 +74,29 @@ def create_shot_map(events_df, team_name, player_name=None):
     goals = shots_df[shots_df['outcome_name'] == 'Goal']
     other_shots = shots_df[shots_df['outcome_name'] != 'Goal']
 
-    # Plot non-goals
-    pitch.scatter(other_shots.x, other_shots.y,
-                  s=other_shots.shot_statsbomb_xg * 700 + 100,  # Scale size by xG, add base size
-                  c='red',
-                  edgecolors='black',
-                  marker='o',
-                  alpha=0.6,
-                  ax=ax,
-                  label='Shot')
+    # Plot non-goal shots with hatch pattern
+    if not other_shots.empty:
+        pitch.scatter(other_shots.x, other_shots.y,
+                      s=(other_shots.shot_statsbomb_xg * 1900) + 100,  # Scale size by xG
+                      edgecolors='#b94b75',  # Border color
+                      c='None',  # No fill color
+                      hatch='///',  # Diagonal hatch pattern
+                      marker='o',
+                      linewidths=0.6,
+                      alpha=0.8,
+                      ax=ax,
+                      label='Shot')
 
     # Plot goals with football marker
-    from matplotlib.patches import Circle
-    from matplotlib import patches
-    
-    for _, goal in goals.iterrows():
-        # Create a football-like symbol (circle with pattern)
-        circle = Circle((goal.x, goal.y), radius=3, facecolor='#2ecc71', 
-                       edgecolor='black', linewidth=2, alpha=0.9, zorder=4)
-        ax.add_patch(circle)
-        
-        # Add inner pattern to make it look more like a football
-        inner_circle = Circle((goal.x, goal.y), radius=1.5, facecolor='white', 
-                             edgecolor='black', linewidth=1, alpha=0.8, zorder=5)
-        ax.add_patch(inner_circle)
-    
-    # Add dummy scatter for legend
     if not goals.empty:
-        pitch.scatter([], [], s=100, c='#2ecc71', edgecolors='black', 
-                     marker='o', linewidth=2, alpha=0.9, ax=ax, label='Goal', zorder=3)
+        pitch.scatter(goals.x, goals.y,
+                      s=(goals.shot_statsbomb_xg * 1900) + 100,  # Scale size by xG
+                      edgecolors='#b94b75',  # Border color  
+                      linewidths=0.6,
+                      c='white',  # White fill
+                      marker='football',  # Football marker
+                      ax=ax,
+                      label='Goal')
 
     ax.legend(facecolor='#EFE9E6', handlelength=3, edgecolor='None', fontsize=12, loc='lower left', framealpha=0.7)
     title_text = f"Shot Map - {team_name}" + (f" - {player_name}" if player_name else "")
