@@ -22,6 +22,12 @@ def create_dashboard_layout():
         html.Div([
             dcc.Tabs([
                 dcc.Tab(
+                    label="📊 Tournament Overview", 
+                    children=match_overview.tournament_layout(),
+                    style={'padding': '10px', 'fontWeight': 'bold'},
+                    selected_style={'padding': '10px', 'fontWeight': 'bold', 'backgroundColor': '#3498db', 'color': 'white'}
+                ),
+                dcc.Tab(
                     label="🏟️ Match Overview", 
                     children=match_overview.layout(),
                     style={'padding': '10px', 'fontWeight': 'bold'},

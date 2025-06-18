@@ -84,17 +84,25 @@ def create_shot_map(events_df, team_name, player_name=None):
                   ax=ax,
                   label='Shot')
 
-    # Plot goals
-    pitch.scatter(goals.x, goals.y,
-                  s=goals.shot_statsbomb_xg * 700 + 100,  # Scale size by xG
-                  c='blue', # Or use 'football' marker from example
-                  edgecolors='black',
-                  marker='*', # Using star for goals
-                  linewidth=1.5,
-                  alpha=0.8,
-                  ax=ax,
-                  label='Goal',
-                  zorder=3) # Ensure goals are on top
+    # Plot goals with football marker
+    from matplotlib.patches import Circle
+    from matplotlib import patches
+    
+    for _, goal in goals.iterrows():
+        # Create a football-like symbol (circle with pattern)
+        circle = Circle((goal.x, goal.y), radius=3, facecolor='#2ecc71', 
+                       edgecolor='black', linewidth=2, alpha=0.9, zorder=4)
+        ax.add_patch(circle)
+        
+        # Add inner pattern to make it look more like a football
+        inner_circle = Circle((goal.x, goal.y), radius=1.5, facecolor='white', 
+                             edgecolor='black', linewidth=1, alpha=0.8, zorder=5)
+        ax.add_patch(inner_circle)
+    
+    # Add dummy scatter for legend
+    if not goals.empty:
+        pitch.scatter([], [], s=100, c='#2ecc71', edgecolors='black', 
+                     marker='o', linewidth=2, alpha=0.9, ax=ax, label='Goal', zorder=3)
 
     ax.legend(facecolor='#EFE9E6', handlelength=3, edgecolor='None', fontsize=12, loc='lower left', framealpha=0.7)
     title_text = f"Shot Map - {team_name}" + (f" - {player_name}" if player_name else "")
@@ -283,7 +291,7 @@ def create_progressive_passes_viz(events_df, team_name):
     
     return save_plot_as_base64(fig)
 
-def create_xg_timeline(events_df, match_info=None):
+def create_xg_timeline(events_df, match_info=None, team_colors=None):
     """Create xG timeline for a match using Matplotlib"""
     if 'type' not in events_df.columns:
         fig, ax = plt.subplots(figsize=(12, 7))
@@ -313,7 +321,12 @@ def create_xg_timeline(events_df, match_info=None):
     
     fig, ax = plt.subplots(figsize=(12, 7))
     
-    colors = plt.cm.get_cmap('viridis', len(teams)) # Get distinct colors
+    # Use provided team colors or defaults
+    if team_colors and len(team_colors) >= len(teams):
+        colors = team_colors[:len(teams)]
+    else:
+        default_colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c']
+        colors = default_colors[:len(teams)] if len(teams) <= len(default_colors) else plt.cm.get_cmap('Set1', len(teams))
 
     for i, team in enumerate(teams):
         team_shots = shots_df[shots_df['team_name'] == team].copy()
@@ -330,10 +343,18 @@ def create_xg_timeline(events_df, match_info=None):
         timeline_data = pd.DataFrame({'minute': plot_minutes, 'cumulative_xg': plot_xg}).sort_values('minute').drop_duplicates('minute',keep='last')
         timeline_data['cumulative_xg'] = timeline_data['cumulative_xg'].ffill()
 
+        color = colors[i] if isinstance(colors, list) else colors(i)
         ax.plot(timeline_data['minute'], timeline_data['cumulative_xg'], 
                 label=f"{team} xG ({timeline_data['cumulative_xg'].iloc[-1]:.2f})", 
-                linewidth=2.5, marker='o', markersize=5, markevery=team_shots['minute'].tolist(), 
-                color=colors(i))
+                linewidth=3, marker='o', markersize=6, 
+                color=color, alpha=0.8)
+        
+        # Add markers at shot events
+        for shot_minute in team_shots['minute']:
+            shot_idx = timeline_data[timeline_data['minute'] <= shot_minute].index[-1] if len(timeline_data[timeline_data['minute'] <= shot_minute]) > 0 else 0
+            if shot_idx < len(timeline_data):
+                ax.scatter(timeline_data.iloc[shot_idx]['minute'], timeline_data.iloc[shot_idx]['cumulative_xg'], 
+                          s=80, color=color, edgecolor='white', linewidth=2, zorder=3, alpha=0.9)
 
     ax.set_xlabel("Minute", fontsize=12)
     ax.set_ylabel("Cumulative xG", fontsize=12)
