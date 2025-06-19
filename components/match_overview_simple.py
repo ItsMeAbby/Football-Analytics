@@ -4,8 +4,8 @@ import dash
 from dash import dcc, html, Input, Output, callback
 import plotly.graph_objects as go
 import pandas as pd
-from utils.data_loader import load_euro_2024_matches, load_match_data, get_all_teams, get_tournament_stats
-from utils.plot_utils import create_shot_map as create_shot_map_plotly, create_pass_network as create_pass_network_plotly, create_xg_timeline as create_xg_timeline_plotly, create_formation_viz
+from utils.data_loader import load_euro_2024_matches, load_match_data, get_all_teams, get_tournament_stats, load_sbopen_match_data
+from utils.plot_utils import create_shot_map as create_shot_map_plotly, create_pass_network as create_pass_network_plotly, create_xg_timeline as create_xg_timeline_plotly, create_formation_viz, matplotlib_plot_as_base64
 
 def layout():
     # Get tournament stats
@@ -128,9 +128,10 @@ def tournament_layout():
         # Tournament overview charts
         html.Div([
             dcc.Tabs([
-                dcc.Tab(label="⚽ Goals Overview", value="goals-tab", style={'padding': '12px', 'fontWeight': 'bold'}, ),
+                dcc.Tab(label="⚽ Goals Analysis", value="goals-tab", style={'padding': '12px', 'fontWeight': 'bold'}),
                 dcc.Tab(label="🏆 Team Performance", value="team-tab", style={'padding': '12px', 'fontWeight': 'bold'}, ),
-                dcc.Tab(label="📈 Tournament Stats", value="stats-tab", style={'padding': '12px', 'fontWeight': 'bold'}, ),
+                dcc.Tab(label="📈 Match Insights", value="stats-tab", style={'padding': '12px', 'fontWeight': 'bold'}),
+                # dcc.Tab(label="🔎 Top Performers", value="players-tab", style={'padding': '12px', 'fontWeight': 'bold'}, title="See leading players and team statistics"),
             ], id="overview-tabs", value="goals-tab"),
             html.Div(id='overview-content', style={'marginTop': '20px'})
         ], style={
@@ -249,6 +250,7 @@ def update_match_visualizations(active_tab, match_id):
     
     try:
         events_df = load_match_data(match_id)
+        sb_event,sb_related, sb_freeze, sb_tactics = load_sbopen_match_data(match_id)
         matches = load_euro_2024_matches()
         match_info = matches[matches['match_id'] == match_id].iloc[0]
         
@@ -891,26 +893,38 @@ def update_match_visualizations(active_tab, match_id):
         
         elif active_tab == "formations":
             # Create formation visualizations for both teams
-            home_formation_fig = create_formation_viz(events_df, home_team)
-            away_formation_fig = create_formation_viz(events_df, away_team)
+            try:
+                home_formation_fig = create_formation_viz(sb_event,sb_related,sb_freeze,sb_tactics,home_team,True)
+                away_formation_fig = create_formation_viz(sb_event,sb_related,sb_freeze,sb_tactics,away_team)
+            except Exception as e:
+                print(f"Error creating formation visualizations: {e}")
+                return html.Div([
+                    html.P(f"Error creating formation visualizations: {str(e)}", 
+                          style={'color': '#e74c3c', 'textAlign': 'center'})
+                ])
             
+            # Note: We don't need to update_layout since the figures are already styled in the create_formation_viz function
             # Set titles with team colors
-            home_formation_fig.update_layout(
-                title=f"<b><span style='color:{home_color}'>{home_team} Formation</span></b>",
-                title_x=0.5,
-                margin=dict(t=50, b=20, l=20, r=20),
-                paper_bgcolor='#f8f9fa',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
+            # Update matplotlib figures with titles and styling
+            home_formation_fig.suptitle(f"{home_team} Formation", 
+                                        color=home_color, 
+                                        fontweight='bold', 
+                                        fontsize=16, 
+                                        y=0.98)
             
-            away_formation_fig.update_layout(
-                title=f"<b><span style='color:{away_color}'>{away_team} Formation</span></b>",
-                title_x=0.5,
-                margin=dict(t=50, b=20, l=20, r=20),
-                paper_bgcolor='#f8f9fa',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
+            away_formation_fig.suptitle(f"{away_team} Formation", 
+                                        color=away_color, 
+                                        fontweight='bold', 
+                                        fontsize=16, 
+                                        y=0.98)
             
+            # Set figure background colors
+            home_formation_fig.patch.set_facecolor('#f8f9fa')
+            away_formation_fig.patch.set_facecolor('#f8f9fa')
+            
+            # Adjust layout for better display
+            home_formation_fig.tight_layout(rect=[0, 0, 1, 0.96])
+            away_formation_fig.tight_layout(rect=[0, 0, 1, 0.96])
             return html.Div([
                 # Description section
                 html.Div([
@@ -924,7 +938,7 @@ def update_match_visualizations(active_tab, match_id):
                         }, title="Hover over players for details")
                     ]),
                     html.Div([
-                        html.P("Team formations with player position heatmaps showing where each player operated during the match. Players are labeled with position acronyms (GK, CB, LW, etc.) and their names. The heatmaps reveal player movement patterns and positional tendencies. Hover over players for more details.", 
+                        html.P("Team formations with player position heatmaps showing where each player operated during the match. Players are labeled with position acronyms (GK, CB, LW, etc.) and their names. The heatmaps reveal player movement patterns and positional tendencies through color intensity. Brighter areas indicate zones where players spent more time.", 
                                style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '10px'}),
                         html.Details([
                             html.Summary("📖 Why Formation Visualizations?", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
@@ -947,14 +961,14 @@ def update_match_visualizations(active_tab, match_id):
                 html.Div([
                     html.Div([
                         html.Div([
-                            dcc.Graph(
-                                figure=home_formation_fig,
-                                config={'displayModeBar': False},
+                            html.Img(
+                                src=matplotlib_plot_as_base64(home_formation_fig),
                                 style={
-                                    'height': '500px',
+                                    'height': '1000px',
                                     'width': '100%',
                                     'borderRadius': '12px',
-                                    'boxShadow': '0 4px 15px rgba(0,0,0,0.15)'
+                                    'boxShadow': '0 4px 15px rgba(0,0,0,0.15)',
+                                    'objectFit': 'contain'
                                 }
                             )
                         ], style={
@@ -967,14 +981,14 @@ def update_match_visualizations(active_tab, match_id):
                     
                     html.Div([
                         html.Div([
-                            dcc.Graph(
-                                figure=away_formation_fig,
-                                config={'displayModeBar': False},
+                            html.Img(
+                                src=matplotlib_plot_as_base64(away_formation_fig),
                                 style={
-                                    'height': '500px',
+                                    'height': '1000px',
                                     'width': '100%',
                                     'borderRadius': '12px',
-                                    'boxShadow': '0 4px 15px rgba(0,0,0,0.15)'
+                                    'boxShadow': '0 4px 15px rgba(0,0,0,0.15)',
+                                    'objectFit': 'contain'
                                 }
                             )
                         ], style={
@@ -1337,6 +1351,9 @@ def update_match_visualizations(active_tab, match_id):
             ])
             
     except Exception as e:
+        # print error trace for debugging
+        import traceback
+        traceback.print_exc()
         return html.P(f"Error creating visualization: {str(e)}", 
                      style={'color': '#e74c3c', 'textAlign': 'center'})
 
@@ -1348,45 +1365,438 @@ def update_overview_content(active_tab):
     try:
         matches = load_euro_2024_matches()
         
-        if active_tab == "goals-tab":
-            # Goals scored by team
-            home_goals = matches.groupby('home_team')['home_score'].sum()
-            away_goals = matches.groupby('away_team')['away_score'].sum()
-            total_goals = home_goals.add(away_goals, fill_value=0).sort_values(ascending=False)
+        if active_tab == "players-tab":
+            # Create Top Performers tab with player statistics
+            # Placeholder data for demonstration
+            top_scorers = [
+                {"player": "C. Ronaldo", "team": "Portugal", "goals": 5, "assists": 2},
+                {"player": "R. Lewandowski", "team": "Poland", "goals": 4, "assists": 1},
+                {"player": "K. Mbappé", "team": "France", "goals": 4, "assists": 3},
+                {"player": "R. Lukaku", "team": "Belgium", "goals": 3, "assists": 2},
+                {"player": "P. Schick", "team": "Czech Republic", "goals": 3, "assists": 0},
+                {"player": "G. Xhaka", "team": "Switzerland", "goals": 2, "assists": 3},
+                {"player": "M. Depay", "team": "Netherlands", "goals": 2, "assists": 2},
+                {"player": "K. Havertz", "team": "Germany", "goals": 2, "assists": 1}
+            ]
             
-            fig = go.Figure(go.Bar(
-                x=total_goals.values,
-                y=total_goals.index,
+            top_keepers = [
+                {"player": "T. Courtois", "team": "Belgium", "clean_sheets": 4, "saves": 18, "save_ratio": 0.92},
+                {"player": "J. Pickford", "team": "England", "clean_sheets": 3, "saves": 12, "save_ratio": 0.86},
+                {"player": "G. Donnarumma", "team": "Italy", "clean_sheets": 3, "saves": 15, "save_ratio": 0.85},
+                {"player": "M. Neuer", "team": "Germany", "clean_sheets": 2, "saves": 14, "save_ratio": 0.82},
+                {"player": "Y. Sommer", "team": "Switzerland", "clean_sheets": 2, "saves": 16, "save_ratio": 0.80}
+            ]
+            
+            # Create top scorers bar chart with assists overlay
+            players = [p["player"] for p in top_scorers]
+            goals = [p["goals"] for p in top_scorers]
+            assists = [p["assists"] for p in top_scorers]
+            teams = [p["team"] for p in top_scorers]
+            
+            # Create color gradient based on goals
+            max_goals = max(goals)
+            colors = [
+                f'rgba(46, 204, 113, {0.6 + 0.4 * (g / max_goals)})' 
+                for g in goals
+            ]
+            
+            # Create scorers figure
+            scorers_fig = go.Figure()
+            
+            # Add goals bars
+            scorers_fig.add_trace(go.Bar(
+                y=players,
+                x=goals,
                 orientation='h',
-                marker=dict(color='lightblue', line=dict(color='darkblue', width=1))
+                name='Goals',
+                marker=dict(color=colors, line=dict(color='rgba(46, 204, 113, 1)', width=1)),
+                hovertemplate='<b>%{y}</b> (%{customdata})<br>Goals: %{x}<extra></extra>',
+                customdata=teams
             ))
             
-            fig.update_layout(
+            # Add assists as overlay
+            scorers_fig.add_trace(go.Bar(
+                y=players,
+                x=assists,
+                orientation='h',
+                name='Assists',
+                marker=dict(color='rgba(52, 152, 219, 0.8)', line=dict(color='rgba(52, 152, 219, 1)', width=1)),
+                hovertemplate='<b>%{y}</b> (%{customdata})<br>Assists: %{x}<extra></extra>',
+                customdata=teams,
+                opacity=0.7
+            ))
+            
+            # Update layout
+            scorers_fig.update_layout(
                 title={
-                    'text': "⚽ Total Goals by Team",
+                    'text': "⚽ Top Goal Scorers",
                     'x': 0.5,
                     'xanchor': 'center',
                     'font': {'size': 20, 'color': '#2c3e50'}
                 },
-                xaxis_title="Goals Scored",
-                yaxis_title="Team",
-                height=600,
+                xaxis_title="Goals / Assists",
+                yaxis_title=None,
+                height=400,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
                 font={'color': '#2c3e50'},
-                margin=dict(l=100, r=50, t=80, b=50),
-                hovermode='closest'
+                margin=dict(l=100, r=20, t=80, b=30),
+                hovermode='closest',
+                barmode='overlay',
+                xaxis=dict(gridcolor='rgba(211, 211, 211, 0.3)')
             )
             
-            fig.update_traces(
-                hovertemplate="<b>%{y}</b><br>Goals: %{x}<extra></extra>"
+            # Create goalkeeper stats visualization
+            keeper_names = [k["player"] for k in top_keepers]
+            clean_sheets = [k["clean_sheets"] for k in top_keepers]
+            save_ratios = [k["save_ratio"] * 100 for k in top_keepers]  # Convert to percentage
+            keeper_teams = [k["team"] for k in top_keepers]
+            
+            keepers_fig = go.Figure()
+            
+            # Add clean sheets bars
+            keepers_fig.add_trace(go.Bar(
+                x=keeper_names,
+                y=clean_sheets,
+                name='Clean Sheets',
+                marker=dict(color='rgba(155, 89, 182, 0.8)', line=dict(color='rgba(155, 89, 182, 1)', width=1)),
+                hovertemplate='<b>%{x}</b> (%{customdata})<br>Clean Sheets: %{y}<extra></extra>',
+                customdata=keeper_teams,
+                width=0.4,
+                offset=-0.2
+            ))
+            
+            # Add save ratio as second axis
+            keepers_fig.add_trace(go.Scatter(
+                x=keeper_names,
+                y=save_ratios,
+                mode='markers',
+                name='Save Ratio (%)',
+                marker=dict(
+                    size=12,
+                    color='rgba(241, 196, 15, 0.9)',
+                    line=dict(color='rgba(243, 156, 18, 1)', width=2),
+                    symbol='diamond'
+                ),
+                hovertemplate='<b>%{x}</b> (%{customdata})<br>Save Ratio: %{y:.1f}%<extra></extra>',
+                customdata=keeper_teams,
+                yaxis='y2'
+            ))
+            
+            # Update layout with dual y-axis
+            keepers_fig.update_layout(
+                title={
+                    'text': "🧤 Top Goalkeepers",
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'font': {'size': 20, 'color': '#2c3e50'}
+                },
+                xaxis_title=None,
+                yaxis=dict(
+                    title="Clean Sheets",
+                    side="left",
+                    range=[0, max(clean_sheets) * 1.2]
+                ),
+                yaxis2=dict(
+                    title="Save Ratio (%)",
+                    side="right",
+                    range=[70, 100],
+                    overlaying="y",
+                    tickmode="linear",
+                    dtick=5
+                ),
+                height=400,
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font={'color': '#2c3e50'},
+                margin=dict(l=50, r=70, t=80, b=50),
+                hovermode='closest',
+                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
             )
             
-            return dcc.Graph(figure=fig, style={'height': '600px'})
+            # Create radar chart comparing top 5 players
+            # Placeholder data for demonstration - would use real stats in production
+            radar_data = [
+                # Goals, Assists, Key Passes, Pass Accuracy, Shots per Game
+                {'name': 'C. Ronaldo', 'stats': [5, 2, 1.8, 78, 4.2]},
+                {'name': 'K. Mbappé', 'stats': [4, 3, 2.3, 82, 3.8]},
+                {'name': 'R. Lewandowski', 'stats': [4, 1, 1.2, 75, 3.5]},
+                {'name': 'R. Lukaku', 'stats': [3, 2, 1.0, 68, 2.9]},
+                {'name': 'G. Xhaka', 'stats': [2, 3, 2.5, 91, 1.5]}
+            ]
+            
+            # Categories for radar chart
+            categories = ['Goals', 'Assists', 'Key Passes', 'Pass Accuracy', 'Shots per Game']
+            
+            # Create radar chart
+            radar_fig = go.Figure()
+            
+            # Add each player as a separate trace
+            colors = ['#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6']
+            for i, player in enumerate(radar_data):
+                radar_fig.add_trace(go.Scatterpolar(
+                    r=player['stats'],
+                    theta=categories,
+                    fill='toself',
+                    name=player['name'],
+                    line=dict(color=colors[i % len(colors)], width=2),
+                    fillcolor=colors[i % len(colors)].replace(')', ', 0.2)').replace('rgb', 'rgba')
+                ))
+            
+            radar_fig.update_layout(
+                polar=dict(
+                    radialaxis=dict(
+                        visible=True,
+                        range=[0, 10]
+                    )
+                ),
+                title={
+                    'text': "🌟 Player Comparison",
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'font': {'size': 20, 'color': '#2c3e50'}
+                },
+                height=500,
+                paper_bgcolor='rgba(0,0,0,0)',
+                font={'color': '#2c3e50'},
+                margin=dict(l=80, r=80, t=100, b=80)
+            )
+            
+            return html.Div([
+                # Description section
+                html.Div([
+                    html.Div([
+                        html.H5("🔎 Top Performers", style={'color': '#2c3e50', 'marginBottom': '10px', 'display': 'inline-block'}),
+                        html.Span(" ℹ️", style={
+                            'marginLeft': '10px', 
+                            'cursor': 'pointer', 
+                            'fontSize': '16px',
+                            'color': '#3498db'
+                        }, title="Tournament's leading players across different statistics")
+                    ]),
+                    html.Div([
+                        html.P("This dashboard showcases the tournament's top performers across multiple categories. Examine the leading goal scorers and assist providers, top goalkeepers based on clean sheets and save percentages, and compare elite players across various performance metrics using the radar chart visualization.", 
+                               style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '10px'}),
+                        html.Details([
+                            html.Summary("📖 Player Analysis Insights", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
+                            html.Div([
+                                html.P("• Goal scorers chart shows both goals (green) and assists (blue) for comparison", style={'margin': '5px 0', 'fontSize': '13px'}),
+                                html.P("• Goalkeeper performance measured by clean sheets and save percentage", style={'margin': '5px 0', 'fontSize': '13px'}),
+                                html.P("• Radar chart allows multi-dimensional comparison of top players", style={'margin': '5px 0', 'fontSize': '13px'}),
+                                html.P("• Hover over visualizations for detailed player and team information", style={'margin': '5px 0', 'fontSize': '13px'})
+                            ], style={'paddingLeft': '15px', 'marginTop': '8px'})
+                        ], style={'marginTop': '10px'})
+                    ])
+                ], style={
+                    'backgroundColor': '#f8f9fa', 
+                    'padding': '15px', 
+                    'borderRadius': '10px', 
+                    'marginBottom': '20px'
+                }),
+                
+                # Scorers and keepers in a row
+                html.Div([
+                    html.Div([
+                        dcc.Graph(figure=scorers_fig, style={'height': '400px'})
+                    ], style={'width': '50%', 'display': 'inline-block', 'paddingRight': '10px'}),
+                    
+                    html.Div([
+                        dcc.Graph(figure=keepers_fig, style={'height': '400px'})
+                    ], style={'width': '50%', 'display': 'inline-block', 'paddingLeft': '10px'}),
+                ], style={'marginBottom': '20px'}),
+                
+                # Radar chart in full width
+                html.Div([
+                    dcc.Graph(figure=radar_fig, style={'height': '500px'})
+                ])
+            ])
+        
+        elif active_tab == "goals-tab":
+            # Calculate team goal statistics
+            team_goals_stats = []
+            
+            for team in get_all_teams():
+                team_matches = matches[
+                    (matches['home_team'] == team) | (matches['away_team'] == team)
+                ]
+                
+                # Calculate goals for and against
+                home_match_count = len(team_matches[team_matches['home_team'] == team])
+                away_match_count = len(team_matches[team_matches['away_team'] == team])
+                total_matches = home_match_count + away_match_count
+                
+                goals_scored_home = team_matches[team_matches['home_team'] == team]['home_score'].sum()
+                goals_scored_away = team_matches[team_matches['away_team'] == team]['away_score'].sum()
+                total_goals_scored = goals_scored_home + goals_scored_away
+                
+                goals_conceded_home = team_matches[team_matches['home_team'] == team]['away_score'].sum()
+                goals_conceded_away = team_matches[team_matches['away_team'] == team]['home_score'].sum()
+                total_goals_conceded = goals_conceded_home + goals_conceded_away
+                
+                # Calculate first/second half goals
+                # This would require event data, simplifying for now
+                
+                # Calculate metrics
+                goals_per_match = total_goals_scored / total_matches if total_matches > 0 else 0
+                goal_difference = total_goals_scored - total_goals_conceded
+                clean_sheets = len(team_matches[
+                    ((team_matches['home_team'] == team) & (team_matches['away_score'] == 0)) | 
+                    ((team_matches['away_team'] == team) & (team_matches['home_score'] == 0))
+                ])
+                
+                team_goals_stats.append({
+                    'team': team,
+                    'goals_scored': total_goals_scored,
+                    'goals_conceded': total_goals_conceded,
+                    'goal_difference': goal_difference,
+                    'goals_per_match': goals_per_match,
+                    'clean_sheets': clean_sheets,
+                    'matches_played': total_matches
+                })
+            
+            # Convert to DataFrame and sort
+            df_goals = pd.DataFrame(team_goals_stats)
+            df_goals = df_goals.sort_values('goals_scored', ascending=False)
+            
+            # Create a color gradient based on goals scored
+            max_goals = df_goals['goals_scored'].max()
+            colors = [
+                f'rgba(52, 152, 219, {0.5 + 0.5 * (goals / max_goals)})' 
+                for goals in df_goals['goals_scored']
+            ]
+            
+            # Create goals scored bar chart
+            goals_fig = go.Figure()
+            
+            # Add goals scored bars
+            goals_fig.add_trace(go.Bar(
+                y=df_goals['team'],
+                x=df_goals['goals_scored'],
+                orientation='h',
+                name='Goals Scored',
+                marker=dict(color=colors, line=dict(color='rgba(52, 152, 219, 1)', width=1)),
+                hovertemplate='<b>%{y}</b><br>Goals Scored: %{x}<br>Goals per Match: %{customdata[0]:.2f}<extra></extra>',
+                customdata=df_goals[['goals_per_match']].values
+            ))
+            
+            # Update layout with tournament logo/theme styling
+            goals_fig.update_layout(
+                title={
+                    'text': "⚽ Goals Scored by Team",
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'font': {'size': 20, 'color': '#2c3e50'}
+                },
+                xaxis_title="Goals",
+                yaxis_title=None,
+                height=500,
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font={'color': '#2c3e50'},
+                margin=dict(l=100, r=20, t=80, b=30),
+                hovermode='closest',
+                barmode='overlay',
+                xaxis=dict(gridcolor='rgba(211, 211, 211, 0.3)')
+            )
+            
+            # Create metrics grid for top 5 teams
+            top_teams = df_goals.head(5)['team'].tolist()
+            
+            return html.Div([
+                # Description section
+                html.Div([
+                    html.Div([
+                        html.H5("⚽ Goals Analysis", style={'color': '#2c3e50', 'marginBottom': '10px', 'display': 'inline-block'}),
+                        html.Span(" ℹ️", style={
+                            'marginLeft': '10px', 
+                            'cursor': 'pointer', 
+                            'fontSize': '16px',
+                            'color': '#3498db'
+                        }, title="Goal scoring patterns across the tournament")
+                    ]),
+                    html.Div([
+                        html.P("This visualization shows the goal-scoring performance of each team in the tournament. Teams are ranked by total goals scored, with color intensity indicating scoring efficiency. The visualization reveals both the total goals and scoring rate, highlighting the tournament's most potent attacking teams.", 
+                               style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '10px'}),
+                        html.Details([
+                            html.Summary("📖 Goal Analysis Insights", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
+                            html.Div([
+                                html.P("• Compare total goals scored across all teams", style={'margin': '5px 0', 'fontSize': '13px'}),
+                                html.P("• See scoring efficiency (goals per match) via hover details", style={'margin': '5px 0', 'fontSize': '13px'}),
+                                html.P("• Color intensity reflects scoring potency", style={'margin': '5px 0', 'fontSize': '13px'}),
+                                html.P("• Top teams highlighted in summary statistics below", style={'margin': '5px 0', 'fontSize': '13px'})
+                            ], style={'paddingLeft': '15px', 'marginTop': '8px'})
+                        ], style={'marginTop': '10px'})
+                    ])
+                ], style={
+                    'backgroundColor': '#f8f9fa', 
+                    'padding': '15px', 
+                    'borderRadius': '10px', 
+                    'marginBottom': '20px'
+                }),
+                
+                # Goals visualization
+                dcc.Graph(figure=goals_fig, style={'height': '500px'}),
+                
+                # Top teams goal statistics
+                html.Div([
+                    html.H5("⭐ Top Goal Scoring Teams", style={'color': '#2c3e50', 'marginBottom': '15px', 'textAlign': 'center'}),
+                    html.Div([
+                        # Create a container for the team cards
+                        html.Div([
+                            # Generate individual team cards
+                            *[html.Div([
+                                # Card content wrapper with team name and stats
+                                html.Div([
+                                    # Team name header - enlarged and styled better
+                                    html.H4(team, style={
+                                        'textAlign': 'center', 
+                                        'color': '#2c3e50', 
+                                        'margin': '0 0 15px 0',
+                                        'padding': '10px 0',
+                                        'borderBottom': '1px solid #ecf0f1',
+                                        'fontSize': '20px'
+                                    }),
+                                    # Stats container
+                                    html.Div([
+                                        # Goals scored stat
+                                        html.Div([
+                                            html.H3(str(int(row['goals_scored'])), style={'fontSize': '28px', 'color': '#3498db', 'margin': '0', 'fontWeight': 'bold'}),
+                                            html.P("Goals Scored", style={'fontSize': '12px', 'color': '#7f8c8d', 'margin': '0'})
+                                        ], style={'width': '33%', 'display': 'inline-block', 'textAlign': 'center'}),
+                                        # Goals per match stat
+                                        html.Div([
+                                            html.H3(f"{row['goals_per_match']:.1f}", style={'fontSize': '28px', 'color': '#2ecc71', 'margin': '0', 'fontWeight': 'bold'}),
+                                            html.P("Goals/Match", style={'fontSize': '12px', 'color': '#7f8c8d', 'margin': '0'})
+                                        ], style={'width': '33%', 'display': 'inline-block', 'textAlign': 'center'}),
+                                        # Clean sheets stat
+                                        html.Div([
+                                            html.H3(str(int(row['clean_sheets'])), style={'fontSize': '28px', 'color': '#9b59b6', 'margin': '0', 'fontWeight': 'bold'}),
+                                            html.P("Clean Sheets", style={'fontSize': '12px', 'color': '#7f8c8d', 'margin': '0'})
+                                        ], style={'width': '33%', 'display': 'inline-block', 'textAlign': 'center'}),
+                                    ])
+                                ], style={
+                                    'padding': '15px',
+                                    'backgroundColor': 'white',
+                                    'borderRadius': '10px',
+                                    'boxShadow': '0 2px 5px rgba(0,0,0,0.1)',
+                                    'marginBottom': '10px',
+                                    'height': '100%'
+                                })
+                            ], style={'width': '19%', 'display': 'inline-block', 'padding': '0 5px'}) 
+                              for team, row in zip(top_teams, [df_goals[df_goals['team'] == team].iloc[0] for team in top_teams])]
+                        ], style={'display': 'flex', 'justifyContent': 'space-between'})
+                    ])
+                ], style={
+                    'backgroundColor': '#ecf0f1', 
+                    'padding': '20px', 
+                    'borderRadius': '10px', 
+                    'marginTop': '25px'
+                })
+            ])
 
         
         elif active_tab == "team-tab":
-            # Team performance metrics
+            # Comprehensive team performance metrics
             team_stats = []
             teams = get_all_teams()
             
@@ -1400,77 +1810,321 @@ def update_overview_content(active_tab):
                 losses = 0
                 goals_for = 0
                 goals_against = 0
+                match_results = []
+                match_dates = []
+                opponents = []
                 
                 for _, match in team_matches.iterrows():
+                    match_date = match['match_date']
+                    match_dates.append(match_date)
+                    
                     if match['home_team'] == team:
+                        opponent = match['away_team']
                         goals_for += match['home_score']
                         goals_against += match['away_score']
+                        score = f"{match['home_score']}-{match['away_score']}"
+                        
                         if match['home_score'] > match['away_score']:
                             wins += 1
+                            result = 'W'
                         elif match['home_score'] == match['away_score']:
                             draws += 1
+                            result = 'D'
                         else:
                             losses += 1
+                            result = 'L'
                     else:
+                        opponent = match['home_team']
                         goals_for += match['away_score']
                         goals_against += match['home_score']
+                        score = f"{match['away_score']}-{match['home_score']}"
+                        
                         if match['away_score'] > match['home_score']:
                             wins += 1
+                            result = 'W'
                         elif match['away_score'] == match['home_score']:
                             draws += 1
+                            result = 'D'
                         else:
                             losses += 1
+                            result = 'L'
+                    
+                    opponents.append(opponent)
+                    match_results.append({
+                        'date': match_date,
+                        'opponent': opponent,
+                        'result': result,
+                        'score': score
+                    })
+                
+                # Sort matches by date
+                match_results = sorted(match_results, key=lambda x: x['date'])
+                
+                # Calculate progression through tournament
+                matches_played = wins + draws + losses
+                points = wins * 3 + draws
+                goal_difference = goals_for - goals_against
+                avg_goals_scored = goals_for / matches_played if matches_played > 0 else 0
+                avg_goals_conceded = goals_against / matches_played if matches_played > 0 else 0
+                win_percentage = (wins / matches_played * 100) if matches_played > 0 else 0
                 
                 team_stats.append({
                     'Team': team,
-                    'Points': wins * 3 + draws
+                    'Matches': matches_played,
+                    'Wins': wins,
+                    'Draws': draws,
+                    'Losses': losses,
+                    'Goals_For': goals_for,
+                    'Goals_Against': goals_against,
+                    'Goal_Difference': goal_difference,
+                    'Points': points,
+                    'Win_Percentage': win_percentage,
+                    'Match_Results': match_results,
+                    'Avg_Goals_Scored': avg_goals_scored,
+                    'Avg_Goals_Conceded': avg_goals_conceded
                 })
             
+            # Convert to DataFrame and sort
             df_stats = pd.DataFrame(team_stats).sort_values('Points', ascending=False)
             
-            fig = go.Figure(go.Bar(
-                x=df_stats['Team'],
-                y=df_stats['Points'],
-                marker=dict(color='gold', line=dict(color='orange', width=1))
+            # Create team standings visualization
+            standings_data = df_stats[['Team', 'Matches', 'Wins', 'Draws', 'Losses', 
+                                     'Goals_For', 'Goals_Against', 'Goal_Difference', 'Points']]
+            
+            # Generate a color gradient based on points
+            max_points = standings_data['Points'].max()
+            colorscale = [
+                [0, 'rgba(247, 247, 247, 0.8)'],  # Light gray for bottom teams
+                [0.6, 'rgba(252, 243, 207, 0.8)'],  # Light gold for middle teams
+                [1, 'rgba(241, 196, 15, 0.8)']   # Gold for top teams
+            ]
+            
+            # Create standings table with colored cells
+            standings_fig = go.Figure(data=[go.Table(
+                header=dict(
+                    values=['<b>Rank</b>', '<b>Team</b>', '<b>MP</b>', '<b>W</b>', '<b>D</b>', '<b>L</b>', 
+                            '<b>GF</b>', '<b>GA</b>', '<b>GD</b>', '<b>Pts</b>'],
+                    fill_color='#2c3e50',
+                    align='center',
+                    font=dict(color='white', size=14)
+                ),
+                cells=dict(
+                    values=[
+                        list(range(1, len(standings_data) + 1)),  # Rank column
+                        standings_data['Team'],
+                        standings_data['Matches'],
+                        standings_data['Wins'],
+                        standings_data['Draws'],
+                        standings_data['Losses'],
+                        standings_data['Goals_For'],
+                        standings_data['Goals_Against'],
+                        standings_data['Goal_Difference'],
+                        standings_data['Points']
+                    ],
+                    fill_color=[
+                        ['rgba(247, 247, 247, 0.8)'] * len(standings_data),  # Rank column
+                        ['rgba(247, 247, 247, 0.8)'] * len(standings_data),  # Team column
+                        ['rgba(247, 247, 247, 0.8)'] * len(standings_data),  # MP column
+                        ['rgba(52, 152, 219, 0.8)'] * len(standings_data),  # W column (blue)
+                        ['rgba(241, 196, 15, 0.8)'] * len(standings_data),  # D column (yellow)
+                        ['rgba(231, 76, 60, 0.8)'] * len(standings_data),   # L column (red)
+                        ['rgba(46, 204, 113, 0.8)'] * len(standings_data),  # GF column (green)
+                        ['rgba(155, 89, 182, 0.8)'] * len(standings_data),  # GA column (purple)
+                        [
+                            'rgba(46, 204, 113, 0.8)' if gd > 0 else 
+                            'rgba(231, 76, 60, 0.8)' if gd < 0 else 
+                            'rgba(149, 165, 166, 0.8)' 
+                            for gd in standings_data['Goal_Difference']
+                        ],  # GD column (colored by value)
+                        [
+                            f'rgba(241, 196, 15, {0.4 + 0.6 * (pts / max_points)})'
+                            for pts in standings_data['Points']
+                        ]  # Points column (gradient by value)
+                    ],
+                    align='center',
+                    font=dict(color='black', size=13),
+                    height=28
+                )
+            )])
+            
+            standings_fig.update_layout(
+                title={
+                    'text': "🏆 Tournament Standings",
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'font': {'size': 20, 'color': '#2c3e50'}
+                },
+                height=500,
+                margin=dict(l=0, r=0, t=50, b=0),
+            )
+            
+            # Create win/draw/loss visualization for top teams - sort by win percentage
+            # First calculate win percentages for sorting
+            df_stats['win_percentage'] = df_stats.apply(lambda row: row['Wins'] / row['Matches'] * 100 if row['Matches'] > 0 else 0, axis=1)
+            # Sort by win percentage first, then by total points as a tiebreaker
+            top_teams_df = df_stats.sort_values(['win_percentage', 'Points'], ascending=[False, False]).head(8)
+            top_teams = top_teams_df['Team'].tolist()
+            
+            # Calculate win/draw/loss percentages
+            win_percentages = []
+            draw_percentages = []
+            loss_percentages = []
+            teams = []
+            
+            # Ensure we use the right teams order directly from top_teams list
+            for team in top_teams:
+                row = top_teams_df[top_teams_df['Team'] == team].iloc[0]
+                total = row['Matches']
+                if total > 0:
+                    win_percentages.append(row['Wins'] / total * 100)
+                    draw_percentages.append(row['Draws'] / total * 100)
+                    loss_percentages.append(row['Losses'] / total * 100)
+                    teams.append(team)
+            
+            # Create stacked bar chart for results
+            results_fig = go.Figure()
+            
+            # Add win bars
+            results_fig.add_trace(go.Bar(
+                y=teams,
+                x=win_percentages,
+                name='Wins',
+                orientation='h',
+                marker=dict(color='rgba(46, 204, 113, 0.8)'),
+                hovertemplate='<b>%{y}</b><br>Wins: %{customdata[0]} (%{x:.1f}%)<extra></extra>',
+                customdata=[[int(top_teams_df[top_teams_df['Team'] == team]['Wins'].values[0])] for team in teams]
             ))
             
-            fig.update_layout(
+            # Add draw bars
+            results_fig.add_trace(go.Bar(
+                y=teams,
+                x=draw_percentages,
+                name='Draws',
+                orientation='h',
+                marker=dict(color='rgba(241, 196, 15, 0.8)'),
+                hovertemplate='<b>%{y}</b><br>Draws: %{customdata[0]} (%{x:.1f}%)<extra></extra>',
+                customdata=[[int(top_teams_df[top_teams_df['Team'] == team]['Draws'].values[0])] for team in teams]
+            ))
+            
+            # Add loss bars
+            results_fig.add_trace(go.Bar(
+                y=teams,
+                x=loss_percentages,
+                name='Losses',
+                orientation='h',
+                marker=dict(color='rgba(231, 76, 60, 0.8)'),
+                hovertemplate='<b>%{y}</b><br>Losses: %{customdata[0]} (%{x:.1f}%)<extra></extra>',
+                customdata=[[int(top_teams_df[top_teams_df['Team'] == team]['Losses'].values[0])] for team in teams]
+            ))
+            
+            # Update layout
+            results_fig.update_layout(
                 title={
-                    'text': "🏆 Team Points (3 for win, 1 for draw)",
+                    'text': "Match Results - Top 8 Teams",
                     'x': 0.5,
                     'xanchor': 'center',
                     'font': {'size': 18, 'color': '#2c3e50'}
                 },
-                xaxis_title="Team",
-                yaxis_title="Points",
-                height=500,
+                xaxis_title="Percentage of Matches",
+                yaxis_title=None,
+                barmode='stack',
+                height=400,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
                 font={'color': '#2c3e50'},
-                margin=dict(l=60, r=50, t=80, b=100),
-                xaxis={'tickangle': 45},
-                hovermode='closest'
+                margin=dict(l=100, r=20, t=50, b=30),
+                hovermode='closest',
+                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+                xaxis=dict(range=[0, 100]),
+                yaxis=dict(autorange="reversed")
             )
             
-            fig.update_traces(
-                hovertemplate="<b>%{x}</b><br>Points: %{y}<extra></extra>"
-            )
-            
-            return dcc.Graph(figure=fig, style={'height': '500px'})
+            return html.Div([
+                # Description section
+                html.Div([
+                    html.Div([
+                        html.H5("🏆 Team Performance", style={'color': '#2c3e50', 'marginBottom': '10px', 'display': 'inline-block'}),
+                        html.Span(" ℹ️", style={
+                            'marginLeft': '10px', 
+                            'cursor': 'pointer', 
+                            'fontSize': '16px',
+                            'color': '#3498db'
+                        }, title="Tournament standings and team performance metrics")
+                    ]),
+                    html.Div([
+                        html.P("This visualization shows the complete tournament standings and performance metrics for all teams. The standings table is color-coded to highlight wins, draws, losses, goals scored, and goal difference. Below the table is a breakdown of match results for the top 8 teams, showing their win/draw/loss distribution.", 
+                               style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '10px'}),
+                        html.Details([
+                            html.Summary("📖 Understanding the Table", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
+                            html.Div([
+                                html.P("• <b>MP</b>: Matches Played", style={'margin': '5px 0', 'fontSize': '13px'}),
+                                html.P("• <b>W/D/L</b>: Wins, Draws, Losses", style={'margin': '5px 0', 'fontSize': '13px'}),
+                                html.P("• <b>GF/GA</b>: Goals For, Goals Against", style={'margin': '5px 0', 'fontSize': '13px'}),
+                                html.P("• <b>GD</b>: Goal Difference (GF - GA)", style={'margin': '5px 0', 'fontSize': '13px'}),
+                                html.P("• <b>Pts</b>: Points (3 for win, 1 for draw)", style={'margin': '5px 0', 'fontSize': '13px'})
+                            ], style={'paddingLeft': '15px', 'marginTop': '8px'})
+                        ], style={'marginTop': '10px'})
+                    ])
+                ], style={
+                    'backgroundColor': '#f8f9fa', 
+                    'padding': '15px', 
+                    'borderRadius': '10px', 
+                    'marginBottom': '20px'
+                }),
+                
+                # Tournament standings table
+                dcc.Graph(figure=standings_fig, style={'height': '500px', 'marginBottom': '25px'}),
+                
+                # Results breakdown visualization
+                dcc.Graph(figure=results_fig, style={'height': '400px'})
+            ])
 
         
         elif active_tab == "stats-tab":
-            # Match statistics
+            # Enhanced match statistics analysis
             matches['total_goals'] = matches['home_score'] + matches['away_score']
+            matches['goals_diff'] = abs(matches['home_score'] - matches['away_score'])
+            matches['home_win'] = matches['home_score'] > matches['away_score']
+            matches['away_win'] = matches['home_score'] < matches['away_score']
+            matches['draw'] = matches['home_score'] == matches['away_score']
             
-            fig = go.Figure()
-            fig.add_trace(go.Histogram(
+            # Calculate aggregate statistics
+            total_matches = len(matches)
+            total_goals = matches['total_goals'].sum()
+            avg_goals = total_goals / total_matches
+            home_wins = matches['home_win'].sum()
+            away_wins = matches['away_win'].sum()
+            draws = matches['draw'].sum()
+            home_win_pct = home_wins / total_matches * 100
+            away_win_pct = away_wins / total_matches * 100
+            draw_pct = draws / total_matches * 100
+            matches_with_goals = len(matches[matches['total_goals'] > 0])
+            clean_sheets = len(matches[matches['home_score'] == 0]) + len(matches[matches['away_score'] == 0])
+            
+            # Create goals per match histogram
+            goals_fig = go.Figure()
+            
+            # Add histogram with custom styling
+            goals_fig.add_trace(go.Histogram(
                 x=matches['total_goals'],
-                nbinsx=10,
-                marker=dict(color='lightgreen', line=dict(color='darkgreen', width=1))
+                marker=dict(
+                    color='rgba(52, 152, 219, 0.7)',
+                    line=dict(color='rgba(52, 152, 219, 1)', width=1)
+                ),
+                hovertemplate='<b>%{x} goals</b>: %{y} matches<extra></extra>'
             ))
             
-            fig.update_layout(
+            # Add mean line
+            goals_fig.add_vline(
+                x=avg_goals,
+                line_dash="dash",
+                line_color="red",
+                annotation_text=f"Avg: {avg_goals:.2f}",
+                annotation_position="top right"
+            )
+            
+            # Update layout
+            goals_fig.update_layout(
                 title={
                     'text': "📈 Goals per Match Distribution",
                     'x': 0.5,
@@ -1479,21 +2133,158 @@ def update_overview_content(active_tab):
                 },
                 xaxis_title="Total Goals per Match",
                 yaxis_title="Number of Matches",
-                height=400,
+                height=350,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
                 font={'color': '#2c3e50'},
                 margin=dict(l=60, r=50, t=80, b=50),
-                hovermode='closest'
+                hovermode='closest',
+                bargap=0.1
             )
             
-            fig.update_traces(
-                hovertemplate="Goals: %{x}<br>Matches: %{y}<extra></extra>"
+            # Create goal difference histogram
+            diff_fig = go.Figure()
+            
+            # Add histogram with custom styling
+            diff_fig.add_trace(go.Histogram(
+                x=matches['goals_diff'],
+                marker=dict(
+                    color='rgba(155, 89, 182, 0.7)',
+                    line=dict(color='rgba(155, 89, 182, 1)', width=1)
+                ),
+                hovertemplate='<b>%{x} goal difference</b>: %{y} matches<extra></extra>'
+            ))
+            
+            # Update layout
+            diff_fig.update_layout(
+                title={
+                    'text': "Goal Difference Distribution",
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'font': {'size': 18, 'color': '#2c3e50'}
+                },
+                xaxis_title="Goal Difference (absolute)",
+                yaxis_title="Number of Matches",
+                height=350,
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font={'color': '#2c3e50'},
+                margin=dict(l=60, r=50, t=80, b=50),
+                hovermode='closest',
+                bargap=0.1
             )
-
-            return dcc.Graph(figure=fig, style={'height': '400px'})
+            
+            # Create pie chart for match outcomes
+            outcomes_fig = go.Figure()
+            
+            # Add pie chart
+            outcomes_fig.add_trace(go.Pie(
+                labels=['Home Wins', 'Away Wins', 'Draws'],
+                values=[home_wins, away_wins, draws],
+                marker=dict(
+                    colors=['rgba(46, 204, 113, 0.7)', 'rgba(52, 152, 219, 0.7)', 'rgba(241, 196, 15, 0.7)'],
+                    line=dict(color='white', width=2)
+                ),
+                textinfo='percent+label',
+                insidetextfont=dict(color='white'),
+                hovertemplate='<b>%{label}</b><br>Count: %{value} (%{percent})<extra></extra>'
+            ))
+            
+            # Update layout
+            outcomes_fig.update_layout(
+                title={
+                    'text': "Match Outcomes",
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'font': {'size': 18, 'color': '#2c3e50'}
+                },
+                height=350,
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font={'color': '#2c3e50'},
+                margin=dict(l=20, r=20, t=80, b=20),
+                hovermode='closest',
+                showlegend=False
+            )
+            
+            return html.Div([
+                # Description section
+                html.Div([
+                    html.Div([
+                        html.H5("📈 Match Insights", style={'color': '#2c3e50', 'marginBottom': '10px', 'display': 'inline-block'}),
+                        html.Span(" ℹ️", style={
+                            'marginLeft': '10px', 
+                            'cursor': 'pointer', 
+                            'fontSize': '16px',
+                            'color': '#3498db'
+                        }, title="Statistical analysis of match patterns across the tournament")
+                    ]),
+                    html.Div([
+                        html.P("This dashboard provides statistical insights into match patterns across the tournament. Explore goal distribution, margin of victory trends, and match outcome breakdowns to understand the tournament's competitiveness and scoring dynamics.", 
+                               style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '10px'}),
+                        html.Details([
+                            html.Summary("📖 Tournament Patterns", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
+                            html.Div([
+                                html.P("• Home teams won {:.1f}% of matches".format(home_win_pct), style={'margin': '5px 0', 'fontSize': '13px'}),
+                                html.P("• {:.1f}% of matches ended in a draw".format(draw_pct), style={'margin': '5px 0', 'fontSize': '13px'}),
+                                html.P("• Average of {:.2f} goals per match".format(avg_goals), style={'margin': '5px 0', 'fontSize': '13px'}),
+                                html.P("• Clean sheets: {} ({:.1f}% of all team appearances)".format(clean_sheets, clean_sheets / (total_matches * 2) * 100), style={'margin': '5px 0', 'fontSize': '13px'})
+                            ], style={'paddingLeft': '15px', 'marginTop': '8px'})
+                        ], style={'marginTop': '10px'})
+                    ])
+                ], style={
+                    'backgroundColor': '#f8f9fa', 
+                    'padding': '15px', 
+                    'borderRadius': '10px', 
+                    'marginBottom': '20px'
+                }),
+                
+                # Key tournament statistics cards
+                html.Div([
+                    html.Div([
+                        html.H5("Tournament Summary", style={'color': '#2c3e50', 'marginBottom': '15px', 'textAlign': 'center'}),
+                        html.Div([
+                            html.Div([
+                                html.H3(f"{total_matches}", style={'fontSize': '28px', 'color': '#3498db', 'margin': '0', 'fontWeight': 'bold'}),
+                                html.P("Total Matches", style={'fontSize': '12px', 'color': '#7f8c8d', 'margin': '0'})
+                            ], style={'width': '25%', 'display': 'inline-block', 'textAlign': 'center'}),
+                            html.Div([
+                                html.H3(f"{total_goals}", style={'fontSize': '28px', 'color': '#2ecc71', 'margin': '0', 'fontWeight': 'bold'}),
+                                html.P("Total Goals", style={'fontSize': '12px', 'color': '#7f8c8d', 'margin': '0'})
+                            ], style={'width': '25%', 'display': 'inline-block', 'textAlign': 'center'}),
+                            html.Div([
+                                html.H3(f"{avg_goals:.2f}", style={'fontSize': '28px', 'color': '#f39c12', 'margin': '0', 'fontWeight': 'bold'}),
+                                html.P("Goals per Match", style={'fontSize': '12px', 'color': '#7f8c8d', 'margin': '0'})
+                            ], style={'width': '25%', 'display': 'inline-block', 'textAlign': 'center'}),
+                            html.Div([
+                                html.H3(f"{clean_sheets}", style={'fontSize': '28px', 'color': '#9b59b6', 'margin': '0', 'fontWeight': 'bold'}),
+                                html.P("Clean Sheets", style={'fontSize': '12px', 'color': '#7f8c8d', 'margin': '0'})
+                            ], style={'width': '25%', 'display': 'inline-block', 'textAlign': 'center'})
+                        ])
+                    ], style={'backgroundColor': '#ecf0f1', 'padding': '15px', 'borderRadius': '10px', 'marginBottom': '20px'}),
+                    
+                    # Visualizations in a grid
+                    html.Div([
+                        html.Div([
+                            dcc.Graph(figure=goals_fig, style={'height': '350px'})
+                        ], style={'width': '50%', 'display': 'inline-block', 'paddingRight': '10px'}),
+                        
+                        html.Div([
+                            dcc.Graph(figure=diff_fig, style={'height': '350px'})
+                        ], style={'width': '50%', 'display': 'inline-block', 'paddingLeft': '10px'})
+                    ], style={'marginBottom': '20px'}),
+                    
+                    html.Div([
+                        html.Div([
+                            dcc.Graph(figure=outcomes_fig, style={'height': '350px'})
+                        ], style={'width': '100%', 'display': 'inline-block'})
+                    ])
+                ])
+            ])
 
             
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return html.P(f"Error creating overview: {str(e)}", 
                      style={'color': '#e74c3c', 'textAlign': 'center'})

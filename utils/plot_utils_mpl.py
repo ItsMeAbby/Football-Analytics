@@ -34,7 +34,7 @@ def create_shot_map(events_df, team_name, player_name=None):
     if 'type' not in events_df.columns:
         fig, ax = plt.subplots(figsize=(12, 8))
         ax.text(0.5, 0.5, "Column 'type' not found in DataFrame.", ha='center', va='center', fontsize=12)
-        return save_plot_as_base64(fig)
+        return matplotlib_plot_as_base64(fig)
         
     shots_df = events_df[events_df['type'] == 'Shot'].copy()
 
@@ -51,7 +51,7 @@ def create_shot_map(events_df, team_name, player_name=None):
         ax.text(0.5, 0.5, "Missing required columns (x, y, shot_statsbomb_xg, or shot_outcome).", 
                   ha='center', va='center', fontsize=10)
         ax.set_title(f"Shot Map - {team_name}" + (f" - {player_name}" if player_name else ""), fontsize=16)
-        return save_plot_as_base64(fig)
+        return matplotlib_plot_as_base64(fig)
         
     if shots_df.empty:
         fig, ax = plt.subplots(figsize=(12, 8)) # Create a figure to return
@@ -60,7 +60,7 @@ def create_shot_map(events_df, team_name, player_name=None):
         ax.text(60, 40, "No shot data available", ha='center', va='center', fontsize=12, color='red',
                 transform=ax.transData) # Use transData for pitch coordinates if pitch is drawn
         ax.set_title(f"Shot Map - {team_name}" + (f" - {player_name}" if player_name else ""), fontsize=16)
-        return save_plot_as_base64(fig)
+        return matplotlib_plot_as_base64(fig)
 
     pitch = VerticalPitch(pitch_type='statsbomb', half=True, pad_bottom=-10, line_zorder=2, line_color='grey')
     fig, ax = pitch.draw(figsize=(12, 8))
@@ -102,14 +102,14 @@ def create_shot_map(events_df, team_name, player_name=None):
     title_text = f"Shot Map - {team_name}" + (f" - {player_name}" if player_name else "")
     ax.set_title(title_text, fontsize=18, color='black', pad=15)
     
-    return save_plot_as_base64(fig)
+    return matplotlib_plot_as_base64(fig)
 
 def create_pass_network(events_df, team_name, match_id=None):
     """Create a pass network visualization using Matplotlib and mplsoccer"""
     if 'type' not in events_df.columns:
         fig, ax = plt.subplots(figsize=(12, 8))
         ax.text(0.5, 0.5, "Column 'type' not found in DataFrame.", ha='center', va='center', fontsize=12)
-        return save_plot_as_base64(fig)
+        return matplotlib_plot_as_base64(fig)
 
     passes_df = events_df[
         (events_df['type'] == 'Pass') &
@@ -123,7 +123,7 @@ def create_pass_network(events_df, team_name, match_id=None):
         ax.text(0.5, 0.5, "Missing required columns for pass network.", 
                   ha='center', va='center', fontsize=10)
         ax.set_title(f"Pass Network - {team_name}", fontsize=16)
-        return save_plot_as_base64(fig)
+        return matplotlib_plot_as_base64(fig)
 
     if passes_df.empty:
         fig, ax = plt.subplots(figsize=(11, 7))
@@ -131,7 +131,7 @@ def create_pass_network(events_df, team_name, match_id=None):
         pitch.draw(ax=ax)
         ax.text(60, 40, "No pass data available", ha='center', va='center', fontsize=12, color='red', transform=ax.transData)
         ax.set_title(f"Pass Network - {team_name}", fontsize=16)
-        return save_plot_as_base64(fig)
+        return matplotlib_plot_as_base64(fig)
 
     # Get player names correctly
     passes_df['player_name'] = passes_df['player'].apply(get_entity_name)
@@ -182,7 +182,7 @@ def create_pass_network(events_df, team_name, match_id=None):
                    path_effects=[path_effects.Stroke(linewidth=1.5, foreground='black'), path_effects.Normal()])
 
     ax.set_title(f"Pass Network - {team_name}", fontsize=18, color='white', pad=15)
-    return save_plot_as_base64(fig)
+    return matplotlib_plot_as_base64(fig)
 
 def create_heatmap(events_df, player_name, event_types=None):
     """Create a player heatmap using Matplotlib and mplsoccer"""
@@ -193,7 +193,7 @@ def create_heatmap(events_df, player_name, event_types=None):
     if 'type' not in events_df.columns:
         fig, ax = plt.subplots(figsize=(12, 8))
         ax.text(0.5, 0.5, "Column 'type' not found in DataFrame.", ha='center', va='center', fontsize=12)
-        return save_plot_as_base64(fig)
+        return matplotlib_plot_as_base64(fig)
 
     player_events = events_df[
         (events_df['player'].apply(get_entity_name) == player_name) &
@@ -206,7 +206,7 @@ def create_heatmap(events_df, player_name, event_types=None):
         ax.text(0.5, 0.5, "Missing required columns (x, y) for heatmap.", 
                   ha='center', va='center', fontsize=10)
         ax.set_title(f"Touch Heatmap - {player_name}", fontsize=16)
-        return save_plot_as_base64(fig)
+        return matplotlib_plot_as_base64(fig)
 
     pitch = VerticalPitch(pitch_type='statsbomb', line_zorder=2, line_color='black', pitch_color='white')
     fig, ax = pitch.draw(figsize=(10, 7))
@@ -215,7 +215,7 @@ def create_heatmap(events_df, player_name, event_types=None):
     if player_events.empty or player_events[['x', 'y']].isnull().all().all():
         ax.text(40, 60, "No event data for heatmap", ha='center', va='center', fontsize=12, color='red', transform=ax.transData)
         ax.set_title(f"Touch Heatmap - {player_name}", fontsize=16, color='black', pad=10)
-        return save_plot_as_base64(fig)
+        return matplotlib_plot_as_base64(fig)
     
     # Create heatmap
     # Using kdeplot for smooth heatmap, or bin_statistic for binned heatmap
@@ -234,7 +234,7 @@ def create_heatmap(events_df, player_name, event_types=None):
                                  path_effects=[path_effects.Stroke(linewidth=1, foreground='white')])
 
     ax.set_title(f"Touch Heatmap - {player_name}", fontsize=18, color='black', pad=15)
-    return save_plot_as_base64(fig)
+    return matplotlib_plot_as_base64(fig)
 
 def create_progressive_passes_viz(events_df, team_name):
     """Create visualization for progressive passes using Matplotlib"""
@@ -242,7 +242,7 @@ def create_progressive_passes_viz(events_df, team_name):
     if 'type' not in events_df.columns:
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.text(0.5, 0.5, "Column 'type' not found in DataFrame.", ha='center', va='center', fontsize=12)
-        return save_plot_as_base64(fig)
+        return matplotlib_plot_as_base64(fig)
         
     prog_passes = events_df[
         (events_df['type'] == 'Pass') &
@@ -262,13 +262,13 @@ def create_progressive_passes_viz(events_df, team_name):
         ax.text(0.5, 0.5, "Missing required columns for progressive passes.", 
                   ha='center', va='center', fontsize=10)
         ax.set_title(f"Progressive Passes - {team_name}", fontsize=16)
-        return save_plot_as_base64(fig)
+        return matplotlib_plot_as_base64(fig)
 
     if prog_passes.empty:
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.text(0.5, 0.5, "No progressive pass data available", ha='center', va='center', fontsize=12, color='red')
         ax.set_title(f"Progressive Passes - {team_name}", fontsize=16)
-        return save_plot_as_base64(fig)
+        return matplotlib_plot_as_base64(fig)
     
     prog_passes['player_name'] = prog_passes['player'].apply(get_entity_name)
     player_counts = prog_passes.groupby('player_name').size().reset_index(name='progressive_passes')
@@ -283,14 +283,14 @@ def create_progressive_passes_viz(events_df, team_name):
     ax.set_title(f"Progressive Passes - {team_name}", fontsize=16, pad=15)
     plt.tight_layout() # Adjust layout to prevent labels cutting off
     
-    return save_plot_as_base64(fig)
+    return matplotlib_plot_as_base64(fig)
 
 def create_xg_timeline(events_df, match_info=None, team_colors=None):
     """Create xG timeline for a match using Matplotlib"""
     if 'type' not in events_df.columns:
         fig, ax = plt.subplots(figsize=(12, 7))
         ax.text(0.5, 0.5, "Column 'type' not found in DataFrame.", ha='center', va='center', fontsize=12)
-        return save_plot_as_base64(fig)
+        return matplotlib_plot_as_base64(fig)
 
     shots_df = events_df[events_df['type'] == 'Shot'].copy()
 
@@ -300,13 +300,13 @@ def create_xg_timeline(events_df, match_info=None, team_colors=None):
         ax.text(0.5, 0.5, "Missing required columns for xG timeline.", 
                   ha='center', va='center', fontsize=10)
         ax.set_title("Expected Goals (xG) Timeline", fontsize=16)
-        return save_plot_as_base64(fig)
+        return matplotlib_plot_as_base64(fig)
         
     if shots_df.empty or shots_df['shot_statsbomb_xg'].isnull().all():
         fig, ax = plt.subplots(figsize=(12, 7))
         ax.text(0.5, 0.5, "No shot data with xG available", ha='center', va='center', fontsize=12, color='red')
         ax.set_title("Expected Goals (xG) Timeline", fontsize=16)
-        return save_plot_as_base64(fig)
+        return matplotlib_plot_as_base64(fig)
 
     shots_df['team_name'] = shots_df['team'].apply(get_entity_name)
     shots_df = shots_df.sort_values('minute')
@@ -361,9 +361,9 @@ def create_xg_timeline(events_df, match_info=None, team_colors=None):
     ax.set_ylim(bottom=0)
     plt.tight_layout()
 
-    return save_plot_as_base64(fig)
+    return matplotlib_plot_as_base64(fig)
 
-def save_plot_as_base64(fig):
+def matplotlib_plot_as_base64(fig):
     """Convert matplotlib figure to base64 string"""
     buf = io.BytesIO()
     fig.savefig(buf, format='png', bbox_inches='tight', dpi=150, facecolor=fig.get_facecolor()) # Preserve facecolor

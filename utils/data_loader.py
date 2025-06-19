@@ -1,10 +1,11 @@
 import matplotlib
 matplotlib.use('Agg')
 from statsbombpy import sb
+from mplsoccer import  Sbopen
 import pandas as pd
 import numpy as np
 from functools import lru_cache
-
+parser = Sbopen()
 @lru_cache(maxsize=1)
 def load_euro_2024_matches():
     """Load all Euro 2024 matches"""
@@ -19,7 +20,12 @@ def load_match_data(match_id):
     events[['pass_end_x', 'pass_end_y']] = events['pass_end_location'].apply(pd.Series)
     events[['carry_end_x', 'carry_end_y']] = events['carry_end_location'].apply(pd.Series)
     return events
-
+@lru_cache(maxsize=10)
+def load_sbopen_match_data(match_id):
+    """Load event data for a specific match using sbopen"""
+    
+    event, related, freeze, tactics = parser.event(match_id)
+    return event, related, freeze, tactics
 @lru_cache(maxsize=1)
 def load_tournament_data():
     """Load all event data for Euro 2024"""

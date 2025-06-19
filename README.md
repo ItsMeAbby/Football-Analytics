@@ -7,10 +7,12 @@ A comprehensive data visualization dashboard for analyzing UEFA Euro 2024 footba
 ### 🏟️ Match Overview
 - **Tournament Statistics**: Total matches, teams, goals, and averages
 - **Interactive Match Selection**: Choose teams and specific matches
-- **Shot Maps**: Visualize shooting patterns for both teams
-- **Pass Networks**: Analyze team passing connections and formations
-- **Expected Goals (xG) Timeline**: Track match momentum over time
-- **Team Performance Comparison**: Side-by-side statistical analysis
+- **Shot Maps**: Visualize shooting patterns, outcomes, and Expected Goals (xG) values for both teams
+- **Pass Networks**: Analyze team passing connections with position-based networks showing player roles
+- **Expected Goals (xG) Timeline**: Track match momentum and goal-scoring chances throughout the match
+- **Match Statistics**: Side-by-side statistical comparison including shots, passes, possession, and more
+- **Key Events**: Chronological timeline of important match events including goals, cards, and substitutions
+- **Formations**: View team formations with player position heatmaps showing movement patterns
 
 ### 🏃‍♂️ Player Dashboard
 - **Individual Player Stats**: Goals, shots, passes, accuracy metrics
@@ -65,6 +67,19 @@ This dashboard uses **StatsBomb's free Euro 2024 dataset**, which includes:
 - Positional data for tactical analysis
 
 ## 🎨 Dashboard Features
+
+### Match Overview Tabs
+- **Shot Maps**: Interactive visualization of all shot attempts with circle size representing Expected Goals (xG) value and different colors for various outcomes (goals, saved shots, etc.). Hover over shots for detailed information.
+
+- **Pass Networks**: Network visualization showing team shape and passing connections. Players are displayed with their position acronyms (GK, CB, LW, etc.) and node size represents player involvement. Line thickness indicates pass frequency between players, and different shapes show substituted players.
+
+- **xG Timeline**: Chart showing the cumulative Expected Goals (xG) for both teams throughout the match. Vertical dashed lines mark actual goals scored with player names. The visualization helps understand which team created better chances and when.
+
+- **Match Stats**: Comprehensive comparison of match statistics including shots, shots on target, successful and failed passes, possession percentage, expected goals, and actual goals scored. Color-coded bars represent each team's performance.
+
+- **Key Events**: Chronological timeline of important match events including goals, cards, substitutions, and fouls. Events are color-coded by team and include minute markers and detailed descriptions.
+
+- **Formations**: Team formation visualizations with player position heatmaps showing where each player operated during the match. Players are labeled with position acronyms and their names, with heatmap intensity showing movement patterns.
 
 ### Visual Design
 - **Modern UI**: Clean, professional interface with Euro 2024 theming

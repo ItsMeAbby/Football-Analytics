@@ -1,16 +1,11 @@
+from matplotlib import pyplot as plt
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 import io
 import base64
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
-from mplsoccer import Pitch, VerticalPitch, Sbopen, FontManager, inset_image
-import tempfile
-import os
+from mplsoccer import Pitch,VerticalPitch
 
 def _draw_pitch_plotly(fig):
     """Draws a detailed soccer pitch background on a Plotly figure."""
@@ -882,244 +877,91 @@ def create_xg_timeline(events_df, match_info=None):
     fig.update_xaxes(automargin=True)
     
     return fig
+def get_formation_offsets(formation: str) -> list:
+    print(f"Getting formation offsets for: {formation}")
+    xoffset_dict = {
+    '343':  [-5, 5,5,5,0, 0, 0, 0, 0, 0, 0],       # 3 CBs, 4 MFs, 3 FW
+    '352':  [-5, 5, 5, 5, 15,15, 0, 0, 0,0, 0],       # 3 CBs, 5 MFs, 2 FW
+    '433':  [-5, 5,5,5,5, 15,4, 4, 10,10, 2],       # 4 DF, 3 MF, 3 FW
+    '442':  [-5, 6, 6, 6, 6, 0, 0, 0, 0, 0, 0],         # provided by you
+    '3412': [-5, 6, 6, 6, 0, 0, 0, 0, 0, 0, 0],        # 3 DF, 4 MF, 1 AM, 2 FW
+    '3421': [-5, 5, 5, 5, 14,14,14,14, 4,4 , 10],        # 3 DF, 4 MF, 2 AM, 1 FW
+    '4141': [-5, 3,3,3,3, 11, 19,19,19,19, 8],       # 4 DF, 1 DM, 4 MF, 1 FW
+    '4231': [-5, 6, 6, 6, 6, 14, 14, 0, 0, 0, 10],       # 4 DF, 2 DM, 3 AM, 1 FW
+    '4411': [-5, 5,5,5,5, -5,-5,-5,-5, 2, 10],         # 4 DF, 4 MF, 1 SS, 1 FW
+}
 
-def create_formation_viz(events_df, team_name, match_id=None):
-    """Create formation visualization with player position heatmaps using mplsoccer"""
+    out=xoffset_dict.get(formation, [0] * 11)  # Default to no offset if formation not found
+    print(f"Offsets for {formation}: {out}")
+    return out
+
+def create_formation_viz(event, related, freeze, tactics ,team_name,home=False):
+    """Create formation visualization with player position heatmaps"""
     # Filter the events to get only the team's data
-    team_events = events_df[events_df['team'].apply(
-        lambda x: x.get('name', '') == team_name if isinstance(x, dict) else str(x) == team_name
-    )].copy()
+    # team_events = events_df[events_df['team'].apply(
+    #     lambda x: x.get('name', '') == team_name if isinstance(x, dict) else str(x) == team_name
+    # )].copy()
+    starting_xi_event = event.loc[((event['type_name'] == 'Starting XI') &
+                               (event['team_name'] == team_name)), ['id', 'tactics_formation']]
+    if starting_xi_event.empty:
+        return go.Figure().add_annotation(text="No starting XI data available for this team", 
+                                        xref="paper", yref="paper", x=0.5, y=0.5)
+    starting_xi = tactics.merge(starting_xi_event, on='id')
+    # if name has 3  or more words, keep first and last word
+    starting_xi['player_name'] = starting_xi['player_name'].apply(lambda x: ' '.join(x.split()[:1] + x.split()[-1:]) if len(x.split()) >= 3 else x)
+    event = event.loc[((event['type_name'] == 'Ball Receipt') &
+                   (event['outcome_name'].isnull()) &
+                   (event['player_id'].isin(starting_xi['player_id']))
+                    ), ['player_id', 'x', 'y']]
+    # merge on the starting positions to the events
+    event = event.merge(starting_xi, on='player_id')
     
-    # Get formation information
-    formation_data = team_events[team_events['tactics_formation'].notna()]
     
-    if formation_data.empty:
+
+    if event.empty:
         return go.Figure().add_annotation(text="No formation data available", 
                                         xref="paper", yref="paper", x=0.5, y=0.5)
-    
-    # Get the latest formation info
-    formation = formation_data['tactics_formation'].iloc[0]
-    
+    formation = event['tactics_formation'].iloc[0] if home else event['tactics_formation'].iloc[1]
     # Get starting XI event and lineup
-    starting_xi_events = team_events[(team_events['type'] == 'Starting XI') | 
-                                    (team_events['type_name'] == 'Starting XI')]
-    
-    if starting_xi_events.empty:
-        return go.Figure().add_annotation(text="No starting XI data available", 
-                                        xref="paper", yref="paper", x=0.5, y=0.5)
-    
-    # Extract lineup data
-    players_info = []
-    
-    # Process tactics lineup
-    try:
-        # Try to extract from tactics_lineup field
-        for _, row in starting_xi_events.iterrows():
-            if 'tactics_lineup' in row and isinstance(row['tactics_lineup'], list):
-                for player in row['tactics_lineup']:
-                    player_id = player.get('player', {}).get('id')
-                    player_name = player.get('player', {}).get('name')
-                    position_id = player.get('position', {}).get('id')
-                    position_name = player.get('position', {}).get('name')
-                    
-                    if player_id and player_name:
-                        # Extract player data
-                        player_events = team_events[
-                            (team_events['player'].apply(
-                                lambda x: x.get('id', None) == player_id if isinstance(x, dict) else False
-                            )) & 
-                            (team_events['type'].isin(['Pass', 'Ball Receipt', 'Carry']))
-                        ]
-                        
-                        if not player_events.empty:
-                            # Calculate average position
-                            avg_x = player_events['x'].mean()
-                            avg_y = player_events['y'].mean()
-                            
-                            # Get x, y coordinates for heatmap
-                            x_coords = player_events['x'].dropna().tolist()
-                            y_coords = player_events['y'].dropna().tolist()
-                            
-                            # Use last name if full name is too long
-                            display_name = player_name
-                            if len(player_name) > 12 and ' ' in player_name:
-                                display_name = player_name.split(' ')[-1]
-                            
-                            # Get position acronym
-                            pos_abbr = positions_dict_acronym.get(position_name, position_name[:2] if position_name else 'UN')
-                            
-                            players_info.append({
-                                'player_id': player_id,
-                                'player_name': player_name,
-                                'display_name': display_name,
-                                'position_id': position_id,
-                                'position_name': position_name,
-                                'position_abbr': pos_abbr,
-                                'avg_x': avg_x,
-                                'avg_y': avg_y,
-                                'x_coords': x_coords,
-                                'y_coords': y_coords
-                            })
-    except Exception as e:
-        print(f"Error processing tactics lineup: {e}")
-    
-    # If no players found through tactics_lineup, try to extract from the events directly
-    if not players_info:
-        print("No players found in tactics_lineup, extracting from events")
-        player_ids = team_events['player'].apply(
-            lambda x: x.get('id') if isinstance(x, dict) and 'id' in x else None
-        ).dropna().unique()
-        
-        for player_id in player_ids:
-            player_events = team_events[
-                (team_events['player'].apply(
-                    lambda x: x.get('id') == player_id if isinstance(x, dict) and 'id' in x else False
-                )) & 
-                (team_events['type'].isin(['Pass', 'Ball Receipt', 'Carry']))
-            ]
-            
-            if not player_events.empty:
-                player_row = player_events.iloc[0]
-                player_name = player_row['player'].get('name', 'Unknown') if isinstance(player_row['player'], dict) else 'Unknown'
-                
-                # Try to get position from the player data
-                position_name = 'Unknown'
-                position_id = None
-                if 'position' in player_row and isinstance(player_row['position'], dict):
-                    position_name = player_row['position'].get('name', 'Unknown')
-                    position_id = player_row['position'].get('id')
-                
-                # Calculate average position
-                avg_x = player_events['x'].mean()
-                avg_y = player_events['y'].mean()
-                
-                # Get x, y coordinates for heatmap
-                x_coords = player_events['x'].dropna().tolist()
-                y_coords = player_events['y'].dropna().tolist()
-                
-                # Use last name if full name is too long
-                display_name = player_name
-                if len(player_name) > 12 and ' ' in player_name:
-                    display_name = player_name.split(' ')[-1]
-                
-                # Get position acronym
-                pos_abbr = positions_dict_acronym.get(position_name, position_name[:2] if position_name else 'UN')
-                
-                players_info.append({
-                    'player_id': player_id,
-                    'player_name': player_name,
-                    'display_name': display_name,
-                    'position_id': position_id,
-                    'position_name': position_name,
-                    'position_abbr': pos_abbr,
-                    'avg_x': avg_x,
-                    'avg_y': avg_y,
-                    'x_coords': x_coords,
-                    'y_coords': y_coords
-                })
-    
-    # Check if we have enough data to create the visualization
-    if not players_info:
-        return go.Figure().add_annotation(text="Insufficient player data for formation visualization", 
-                                        xref="paper", yref="paper", x=0.5, y=0.5)
-    
-    # Create a matplotlib figure with formation visualization
-    # Create vertical pitch
-    pitch = VerticalPitch(goal_type='box', pitch_color='#22312b', line_color='#c7d5cc')
-    
-    # Create the figure with grid layout
+
+    pitch = VerticalPitch(goal_type='box')
     fig, axs = pitch.grid(endnote_height=0, title_height=0.08, figheight=14, grid_width=0.9,
                         grid_height=0.9, axis=False)
     
-    # Use Rubik Mono One font for title
-    try:
-        fm_rubik = FontManager('https://raw.githubusercontent.com/google/fonts/main/ofl/'
-                            'rubikmonoone/RubikMonoOne-Regular.ttf')
-    except:
-        # Fallback to default font if Rubik can't be loaded
-        fm_rubik = None
-    
-    # Set title
-    title_props = fm_rubik.prop if fm_rubik else None
-    title = axs['title'].text(0.5, 0.5, f'Formation: {formation}\n{team_name}', fontsize=18,
-                            va='center', ha='center', color='#c7d5cc', fontproperties=title_props)
-    
-    # Create a positional grid for each player
-    pitch_positions = {}
-    position_grids = {}
-    
-    for player in players_info:
-        if player['position_id'] and player['x_coords'] and player['y_coords']:
-            # Use position_id as the grid key
-            position_id = player['position_id']
-            
-            # If this position hasn't been handled yet, create a grid for it
-            if position_id not in position_grids:
-                # Calculate grid positions with proper offsets to avoid overlap
-                # This is a simplified approach - ideally we would calculate proper offsets based on formation
-                position_grids[position_id] = pitch.grid(ncols=1, nrows=1, grid_height=0.9, axis=False)['pitch']
-                
-                # Create KDE plot for this player
-                pitch_positions[position_id] = pitch.kdeplot(
-                    player['x_coords'], player['y_coords'],
-                    ax=position_grids[position_id],
-                    fill=True, levels=100, 
-                    cut=4, cmap='Blues', thresh=0)
-                
-                # Add player name and position
-                position_grids[position_id].text(
-                    120/2, 10, player['display_name'], 
-                    va='top', ha='center', fontsize=12, 
-                    color='white', fontweight='bold')
-                
-                position_grids[position_id].text(
-                    120/2, 20, player['position_abbr'], 
-                    va='top', ha='center', fontsize=14, 
-                    color='white', fontweight='bold', 
-                    bbox=dict(facecolor='#1E88E5', alpha=0.7, boxstyle='round,pad=0.5'))
-    
-    # Save figure to a temporary file
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
-    plt.savefig(temp_file.name, dpi=200, bbox_inches='tight', facecolor='#22312b')
-    plt.close()
-    
-    # Read the saved image and convert to base64
-    with open(temp_file.name, 'rb') as img_file:
-        img_data = base64.b64encode(img_file.read()).decode('utf-8')
-    
-    # Clean up the temporary file
-    os.unlink(temp_file.name)
-    
-    # Create a Plotly figure to display the image
-    fig = go.Figure()
-    
-    # Add the image to the figure
-    fig.add_layout_image(
-        dict(
-            source=f'data:image/png;base64,{img_data}',
-            xref="paper", yref="paper",
-            x=0, y=1,
-            sizex=1, sizey=1,
-            sizing="stretch",
-            layer="below"
-        )
-    )
-    
-    # Update the layout to be transparent
-    fig.update_layout(
-        title=f"{team_name} Formation: {formation}",
-        title_x=0.5,
-        title_font=dict(size=16, color='white'),
-        height=700,
-        width=500,
-        showlegend=False,
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=0, r=0, t=30, b=0),
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
-    )
-    
+
+    pitch_ax = pitch.formation(formation,
+                            kind='pitch',
+                            # avoid overlapping pitches with offsets
+                            xoffset = get_formation_offsets(formation),
+                            # pitch is 23 units long (could also set the height).
+                            # note this is set assuming the pitch is horizontal, but in this example
+                            # it is vertical so that you get the same results
+                            # from both VerticalPitch and Pitch
+                            width=23,
+                            positions=starting_xi['position_id'],
+                            ax=axs['pitch'],
+                            # additional arguments temporarily amend the pitch appearance
+                            # note we are plotting a really faint positional grid
+                            # that overlays the kdeplot
+                            linewidth=0.5,
+                            pitch_color='None',
+                            line_zorder=3,
+                            line_color='black',
+                            positional=True,
+                            positional_zorder=3,
+                            positional_linewidth=1,
+                            positional_alpha=0.3,
+                            )
+
+    # adding kdeplot and player titles
+    for position in pitch_ax:
+        player_name = starting_xi[starting_xi['position_id'] == position].player_name.iloc[0]
+        player_name = player_name.replace(' ', '\n').replace('-', '-\n')
+        pitch.text(150, 40, player_name, va='top', ha='center', fontsize=15, ax=pitch_ax[position], color='#353535')
+        pitch.kdeplot(x=event.loc[event['position_id'] == position, 'x'],
+                    y=event.loc[event['position_id'] == position, 'y'],
+                    fill=True, levels=100, cut=100, cmap='Blues', thresh=0, ax=pitch_ax[position])
+
     return fig
 
 # Dictionary for position acronyms
@@ -1151,10 +993,19 @@ positions_dict_acronym = {
     "Substitute": "SUB"
 }
 
-def save_plot_as_base64(fig):
+def plotly_plot_as_base64(fig):
     """Convert Plotly figure to base64 string"""
     buf = io.BytesIO()
     fig.write_image(buf, format='png', engine='kaleido', scale=2) # Use kaleido for better quality
     buf.seek(0)
     encoded = base64.b64encode(buf.getvalue()).decode('utf-8')
+    return f"data:image/png;base64,{encoded}"
+
+def matplotlib_plot_as_base64(fig):
+    """Convert matplotlib figure to base64 string"""
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', bbox_inches='tight', dpi=150, facecolor=fig.get_facecolor()) # Preserve facecolor
+    buf.seek(0)
+    encoded = base64.b64encode(buf.getvalue()).decode('utf-8')
+    plt.close(fig) # Close the figure to free memory
     return f"data:image/png;base64,{encoded}"

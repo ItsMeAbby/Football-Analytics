@@ -40,4 +40,5 @@ plotly-latest.min.js
 .vscode/
 *.swp
 *.swo
+*.csv
 .DS_Store
