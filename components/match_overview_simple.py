@@ -5,7 +5,7 @@ from dash import dcc, html, Input, Output, callback
 import plotly.graph_objects as go
 import pandas as pd
 from utils.data_loader import load_euro_2024_matches, load_match_data, get_all_teams, get_tournament_stats
-from utils.plot_utils_mpl import create_shot_map, create_pass_network, create_xg_timeline
+from utils.plot_utils import create_shot_map as create_shot_map_plotly, create_pass_network as create_pass_network_plotly, create_xg_timeline as create_xg_timeline_plotly, create_formation_viz
 
 def layout():
     # Get tournament stats
@@ -128,9 +128,9 @@ def tournament_layout():
         # Tournament overview charts
         html.Div([
             dcc.Tabs([
-                dcc.Tab(label="⚽ Goals Overview", value="goals-tab", style={'padding': '12px', 'fontWeight': 'bold'}),
-                dcc.Tab(label="🏆 Team Performance", value="team-tab", style={'padding': '12px', 'fontWeight': 'bold'}),
-                dcc.Tab(label="📈 Tournament Stats", value="stats-tab", style={'padding': '12px', 'fontWeight': 'bold'}),
+                dcc.Tab(label="⚽ Goals Overview", value="goals-tab", style={'padding': '12px', 'fontWeight': 'bold'}, ),
+                dcc.Tab(label="🏆 Team Performance", value="team-tab", style={'padding': '12px', 'fontWeight': 'bold'}, ),
+                dcc.Tab(label="📈 Tournament Stats", value="stats-tab", style={'padding': '12px', 'fontWeight': 'bold'}, ),
             ], id="overview-tabs", value="goals-tab"),
             html.Div(id='overview-content', style={'marginTop': '20px'})
         ], style={
@@ -210,11 +210,12 @@ def update_match_analysis(match_id):
             
             # Match visualizations
             dcc.Tabs([
-                dcc.Tab(label="📍 Shot Maps", value="shots", style={'padding': '12px', 'fontWeight': 'bold'}),
-                dcc.Tab(label="🔗 Pass Networks", value="passes", style={'padding': '12px', 'fontWeight': 'bold'}),
-                dcc.Tab(label="📈 xG Timeline", value="xg", style={'padding': '12px', 'fontWeight': 'bold'}),
-                dcc.Tab(label="📊 Match Stats", value="stats", style={'padding': '12px', 'fontWeight': 'bold'}),
+                dcc.Tab(label="📍 Shot Maps", value="shots", style={'padding': '12px', 'fontWeight': 'bold'}, ),
+                dcc.Tab(label="🔗 Pass Networks", value="passes", style={'padding': '12px', 'fontWeight': 'bold'},),
+                dcc.Tab(label="📈 xG Timeline", value="xg", style={'padding': '12px', 'fontWeight': 'bold'}, ),
+                dcc.Tab(label="📊 Match Stats", value="stats", style={'padding': '12px', 'fontWeight': 'bold'},),
                 dcc.Tab(label="🎯 Key Events", value="events", style={'padding': '12px', 'fontWeight': 'bold'}),
+                dcc.Tab(label="💰 Formations", value="formations", style={'padding': '12px', 'fontWeight': 'bold'}),
             ], id="match-tabs", value="shots"),
             
             html.Div(id='match-viz-content', style={'marginTop': '25px'})
@@ -272,39 +273,62 @@ def update_match_visualizations(active_tab, match_id):
             away_color = '#3498db'  # Blue for second team
         
         if active_tab == "shots":
-            home_shot_map = create_shot_map(events_df, home_team)
-            away_shot_map = create_shot_map(events_df, away_team)
+            # Create interactive Plotly shot maps
+            home_shot_map_fig = create_shot_map_plotly(events_df, home_team)
+            away_shot_map_fig = create_shot_map_plotly(events_df, away_team)
+            
+            # Set titles with team colors
+            home_shot_map_fig.update_layout(
+                title=f"<b><span style='color:{home_color}'>{home_team} Shots</span></b>",
+                title_x=0.5,
+                margin=dict(t=50, b=20, l=20, r=20),
+                paper_bgcolor='#f8f9fa',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            
+            away_shot_map_fig.update_layout(
+                title=f"<b><span style='color:{away_color}'>{away_team} Shots</span></b>",
+                title_x=0.5,
+                margin=dict(t=50, b=20, l=20, r=20),
+                paper_bgcolor='#f8f9fa',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
             
             return html.Div([
                 # Statistics summary for shots
                 html.Div([
-                    html.H5("📊 Shot Statistics", style={'color': '#2c3e50', 'marginBottom': '15px', 'textAlign': 'center'}),
+                    html.H5("📊 Match Statistics", style={'color': '#2c3e50', 'marginBottom': '15px', 'textAlign': 'center'}),
                     html.Div([
                         html.Div([
                             html.H6(f"{len(events_df[(events_df['type'] == 'Shot') & (events_df['team'].apply(lambda x: x.get('name', '') if isinstance(x, dict) else str(x)) == home_team)])}", 
                                    style={'fontSize': '24px', 'color': home_color, 'margin': '0', 'fontWeight': 'bold'}),
                             html.P(f"{home_team} Shots", style={'fontSize': '12px', 'color': '#7f8c8d', 'margin': '0'})
-                        ], style={'width': '20%', 'display': 'inline-block', 'textAlign': 'center'}),
+                        ], style={'width': '16.6%', 'display': 'inline-block', 'textAlign': 'center'}),
                         html.Div([
                             html.H6(f"{len(events_df[(events_df['type'] == 'Shot') & (events_df['team'].apply(lambda x: x.get('name', '') if isinstance(x, dict) else str(x)) == away_team)])}", 
                                    style={'fontSize': '24px', 'color': away_color, 'margin': '0', 'fontWeight': 'bold'}),
                             html.P(f"{away_team} Shots", style={'fontSize': '12px', 'color': '#7f8c8d', 'margin': '0'})
-                        ], style={'width': '20%', 'display': 'inline-block', 'textAlign': 'center'}),
+                        ], style={'width': '16.6%', 'display': 'inline-block', 'textAlign': 'center'}),
                         html.Div([
                             html.H6(f"{match_info['home_score'] + match_info['away_score']}", 
                                    style={'fontSize': '24px', 'color': '#2ecc71', 'margin': '0', 'fontWeight': 'bold'}),
                             html.P("Total Goals", style={'fontSize': '12px', 'color': '#7f8c8d', 'margin': '0'})
-                        ], style={'width': '20%', 'display': 'inline-block', 'textAlign': 'center'}),
+                        ], style={'width': '16.6%', 'display': 'inline-block', 'textAlign': 'center'}),
                         html.Div([
                             html.H6(f"{len(events_df[events_df['type'] == 'Foul Committed'])}", 
                                    style={'fontSize': '24px', 'color': '#e74c3c', 'margin': '0', 'fontWeight': 'bold'}),
                             html.P("Total Fouls", style={'fontSize': '12px', 'color': '#7f8c8d', 'margin': '0'})
-                        ], style={'width': '20%', 'display': 'inline-block', 'textAlign': 'center'}),
+                        ], style={'width': '16.6%', 'display': 'inline-block', 'textAlign': 'center'}),
                         html.Div([
                             html.H6(f"{len(events_df[(events_df['type'] == 'Shot') & (events_df['shot_outcome'].apply(lambda x: x.get('name', '') if isinstance(x, dict) else str(x)) == 'Goal')])}", 
                                    style={'fontSize': '24px', 'color': '#f39c12', 'margin': '0', 'fontWeight': 'bold'}),
-                            html.P("Goals Scored", style={'fontSize': '12px', 'color': '#7f8c8d', 'margin': '0'})
-                        ], style={'width': '20%', 'display': 'inline-block', 'textAlign': 'center'}),
+                            html.P("Player Goals", style={'fontSize': '12px', 'color': '#7f8c8d', 'margin': '0', 'title': 'Goals scored directly by players (not own goals)'})
+                        ], style={'width': '16.6%', 'display': 'inline-block', 'textAlign': 'center'}),
+                        html.Div([
+                            html.H6(f"{len(events_df[events_df['type'] == 'Own Goal For'])}", 
+                                   style={'fontSize': '24px', 'color': '#9b59b6', 'margin': '0', 'fontWeight': 'bold'}),
+                            html.P("Own Goals", style={'fontSize': '12px', 'color': '#7f8c8d', 'margin': '0'})
+                        ], style={'width': '16.6%', 'display': 'inline-block', 'textAlign': 'center'}),
                     ])
                 ], style={
                     'backgroundColor': '#ecf0f1', 
@@ -322,11 +346,18 @@ def update_match_visualizations(active_tab, match_id):
                             'cursor': 'pointer', 
                             'fontSize': '16px',
                             'color': '#3498db'
-                        }, title="Shot maps show location and quality of shot attempts. Circle size = xG value")
+                        }, title="Shot maps show location and quality of shot attempts. Circle size = xG value. Hover over shots for details.")
                     ]),
                     html.Div([
-                        html.P("Shot maps show the location and quality of all shot attempts during the match. Circle size represents Expected Goals (xG) value - larger circles indicate higher probability of scoring. Green circles with white centers show goals, red circles show other shots.", 
+                        html.P("Shot maps show the location and quality of all shot attempts during the match. Circle size represents Expected Goals (xG) value - larger circles indicate higher probability of scoring. Different colors indicate different shot outcomes, with goals highlighted with gold circles and labeled with ⚽. Hover over any shot for detailed information including the player's name, xG value, and outcome. Note: Own goals are not shown on shot maps as they are not recorded as shots.", 
                                style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '10px'}),
+                        html.Div([
+                            html.P([
+                                "Own goals in this match: ",
+                                html.Span(f"{len(events_df[events_df['type'] == 'Own Goal For'])}", 
+                                        style={'fontWeight': 'bold', 'color': '#9b59b6'})
+                            ], style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '5px', 'fontStyle': 'italic'}),
+                        ]) if 'Own Goal For' in events_df['type'].values else None,
                         html.Details([
                             html.Summary("📖 Why Shot Maps?", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
                             html.Div([
@@ -344,24 +375,20 @@ def update_match_visualizations(active_tab, match_id):
                     'marginBottom': '20px'
                 }),
                 
-                # Shot maps
+                # Interactive Shot maps
                 html.Div([
                     html.Div([
                         html.Div([
-                            html.H5(f"{home_team} Shots", style={
-                                'textAlign': 'center', 
-                                'marginBottom': '15px', 
-                                'color': home_color,
-                                'fontSize': '18px',
-                                'fontWeight': 'bold'
-                            }),
-                            html.Img(style={
-                                'width': '100%', 
-                                'maxWidth': '550px', 
-                                'height': 'auto', 
-                                'borderRadius': '12px', 
-                                'boxShadow': '0 4px 15px rgba(0,0,0,0.15)'
-                            }, src=home_shot_map)
+                            dcc.Graph(
+                                figure=home_shot_map_fig,
+                                config={'displayModeBar': False},
+                                style={
+                                    'height': '500px',
+                                    'width': '100%',
+                                    'borderRadius': '12px',
+                                    'boxShadow': '0 4px 15px rgba(0,0,0,0.15)'
+                                }
+                            )
                         ], style={
                             'backgroundColor': '#f8f9fa',
                             'padding': '15px',
@@ -372,20 +399,16 @@ def update_match_visualizations(active_tab, match_id):
                     
                     html.Div([
                         html.Div([
-                            html.H5(f"{away_team} Shots", style={
-                                'textAlign': 'center', 
-                                'marginBottom': '15px', 
-                                'color': away_color,
-                                'fontSize': '18px',
-                                'fontWeight': 'bold'
-                            }),
-                            html.Img(style={
-                                'width': '100%', 
-                                'maxWidth': '550px', 
-                                'height': 'auto', 
-                                'borderRadius': '12px', 
-                                'boxShadow': '0 4px 15px rgba(0,0,0,0.15)'
-                            }, src=away_shot_map)
+                            dcc.Graph(
+                                figure=away_shot_map_fig,
+                                config={'displayModeBar': False},
+                                style={
+                                    'height': '500px',
+                                    'width': '100%',
+                                    'borderRadius': '12px',
+                                    'boxShadow': '0 4px 15px rgba(0,0,0,0.15)'
+                                }
+                            )
                         ], style={
                             'backgroundColor': '#f8f9fa',
                             'padding': '15px',
@@ -397,8 +420,26 @@ def update_match_visualizations(active_tab, match_id):
             ])
         
         elif active_tab == "passes":
-            home_pass_network = create_pass_network(events_df, home_team)
-            away_pass_network = create_pass_network(events_df, away_team)
+            # Create interactive Plotly pass networks
+            home_pass_network_fig = create_pass_network_plotly(events_df, home_team)
+            away_pass_network_fig = create_pass_network_plotly(events_df, away_team)
+            
+            # Set titles with team colors
+            home_pass_network_fig.update_layout(
+                title=f"<b><span style='color:{home_color}'>{home_team} Pass Network</span></b>",
+                title_x=0.5,
+                margin=dict(t=50, b=20, l=20, r=20),
+                paper_bgcolor='#f8f9fa',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            
+            away_pass_network_fig.update_layout(
+                title=f"<b><span style='color:{away_color}'>{away_team} Pass Network</span></b>",
+                title_x=0.5,
+                margin=dict(t=50, b=20, l=20, r=20),
+                paper_bgcolor='#f8f9fa',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
             
             return html.Div([
                 # Statistics summary for passes
@@ -447,10 +488,10 @@ def update_match_visualizations(active_tab, match_id):
                             'cursor': 'pointer', 
                             'fontSize': '16px',
                             'color': '#3498db'
-                        }, title="Pass networks show team shape and passing relationships")
+                        }, title="Pass networks show team shape and passing relationships. Hover over players and connections for details.")
                     ]),
                     html.Div([
-                        html.P("Pass networks show team shape and passing relationships. Node size represents passing activity, node position shows average field position, and line thickness shows pass frequency between players.", 
+                        html.P("Pass networks show team shape and passing relationships. Player nodes are labeled with position acronyms (GK, CB, LW, etc.) instead of names for better tactical understanding. Node size represents passing involvement, node position shows average field position, and line thickness shows pass frequency between players. Different node shapes indicate substituted players. Hover over nodes or connections for detailed information including player names, positions, and passing statistics.", 
                                style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '10px'}),
                         html.Details([
                             html.Summary("📖 Why Pass Networks?", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
@@ -469,24 +510,20 @@ def update_match_visualizations(active_tab, match_id):
                     'marginBottom': '20px'
                 }),
                 
-                # Pass networks
+                # Interactive Pass networks
                 html.Div([
                     html.Div([
                         html.Div([
-                            html.H5(f"{home_team} Pass Network", style={
-                                'textAlign': 'center', 
-                                'marginBottom': '15px', 
-                                'color': home_color,
-                                'fontSize': '18px',
-                                'fontWeight': 'bold'
-                            }),
-                            html.Img(style={
-                                'width': '100%', 
-                                'maxWidth': '550px', 
-                                'height': 'auto', 
-                                'borderRadius': '12px', 
-                                'boxShadow': '0 4px 15px rgba(0,0,0,0.15)'
-                            }, src=home_pass_network)
+                            dcc.Graph(
+                                figure=home_pass_network_fig,
+                                config={'displayModeBar': False},
+                                style={
+                                    'height': '500px',
+                                    'width': '100%',
+                                    'borderRadius': '12px',
+                                    'boxShadow': '0 4px 15px rgba(0,0,0,0.15)'
+                                }
+                            )
                         ], style={
                             'backgroundColor': '#f8f9fa',
                             'padding': '15px',
@@ -497,20 +534,16 @@ def update_match_visualizations(active_tab, match_id):
                     
                     html.Div([
                         html.Div([
-                            html.H5(f"{away_team} Pass Network", style={
-                                'textAlign': 'center', 
-                                'marginBottom': '15px', 
-                                'color': away_color,
-                                'fontSize': '18px',
-                                'fontWeight': 'bold'
-                            }),
-                            html.Img(style={
-                                'width': '100%', 
-                                'maxWidth': '550px', 
-                                'height': 'auto', 
-                                'borderRadius': '12px', 
-                                'boxShadow': '0 4px 15px rgba(0,0,0,0.15)'
-                            }, src=away_pass_network)
+                            dcc.Graph(
+                                figure=away_pass_network_fig,
+                                config={'displayModeBar': False},
+                                style={
+                                    'height': '500px',
+                                    'width': '100%',
+                                    'borderRadius': '12px',
+                                    'boxShadow': '0 4px 15px rgba(0,0,0,0.15)'
+                                }
+                            )
                         ], style={
                             'backgroundColor': '#f8f9fa',
                             'padding': '15px',
@@ -522,12 +555,24 @@ def update_match_visualizations(active_tab, match_id):
             ])
         
         elif active_tab == "xg":
-            # Create team colors list for xG timeline - match team order with data
-            # The xG timeline function sorts teams alphabetically, so we need to map colors correctly
-            teams_in_data = sorted([home_team, away_team])
-            team_colors_dict = {home_team: home_color, away_team: away_color}
-            team_colors_list = [team_colors_dict[team] for team in teams_in_data]
-            xg_timeline = create_xg_timeline(events_df, match_info, team_colors_list)
+            # Create interactive Plotly xG timeline
+            xg_timeline_fig = create_xg_timeline_plotly(events_df, match_info)
+            
+            # Set colors for teams - carefully check for string match
+            for trace in xg_timeline_fig.data:
+                if trace.name and home_team in str(trace.name):
+                    trace.line.color = home_color
+                elif trace.name and away_team in str(trace.name):
+                    trace.line.color = away_color
+            
+            # Update layout
+            xg_timeline_fig.update_layout(
+                title=f"<b>Expected Goals (xG) Timeline</b>",
+                title_x=0.5,
+                margin=dict(t=50, b=20, l=50, r=20),
+                paper_bgcolor='#f8f9fa',
+                plot_bgcolor='white'
+            )
             
             # Calculate xG values for statistics
             home_xg = events_df[
@@ -586,10 +631,10 @@ def update_match_visualizations(active_tab, match_id):
                             'cursor': 'pointer', 
                             'fontSize': '16px',
                             'color': '#3498db'
-                        }, title="xG timeline shows cumulative goal-scoring chances over time")
+                        }, title="xG timeline shows cumulative goal-scoring chances over time. Hover for details.")
                     ]),
                     html.Div([
-                        html.P("Expected Goals (xG) timeline shows the cumulative goal-scoring chances throughout the match. Each point represents a shot attempt, with the line showing how goal threat accumulated over time.", 
+                        html.P("Expected Goals (xG) timeline shows the cumulative goal-scoring chances throughout the match. Each point represents a shot attempt, with the line showing how goal threat accumulated over time. Vertical dashed lines mark actual goals scored with player names displayed. Lines are color-coded by team for easy comparison. Hover over any point to see detailed information and use the unified hover mode to compare teams at specific minutes of the match.", 
                                style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '10px'}),
                         html.Details([
                             html.Summary("📖 Why xG Timeline?", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
@@ -608,15 +653,18 @@ def update_match_visualizations(active_tab, match_id):
                     'marginBottom': '20px'
                 }),
                 
-                # xG Timeline
+                # Interactive xG Timeline
                 html.Div([
-                    html.Img(style={
-                        'width': '100%', 
-                        'maxWidth': '900px', 
-                        'height': 'auto', 
-                        'borderRadius': '12px', 
-                        'boxShadow': '0 4px 15px rgba(0,0,0,0.15)'
-                    }, src=xg_timeline)
+                    dcc.Graph(
+                        figure=xg_timeline_fig,
+                        config={'displayModeBar': False},
+                        style={
+                            'height': '500px',
+                            'width': '100%',
+                            'borderRadius': '12px',
+                            'boxShadow': '0 4px 15px rgba(0,0,0,0.15)'
+                        }
+                    )
                 ], style={
                     'backgroundColor': '#f8f9fa',
                     'padding': '20px',
@@ -700,7 +748,7 @@ def update_match_visualizations(active_tab, match_id):
                         }, title="Click for more information")
                     ]),
                     html.Div([
-                        html.P("Comprehensive match statistics comparing both teams across key performance metrics. Bar length shows relative performance, with numbers displayed inside each segment.", 
+                        html.P("Comprehensive match statistics comparing both teams across key performance metrics. The color-coded bars represent each team's relative performance, with the exact values displayed inside. Statistics include shots, shots on target, successful and failed passes, possession percentage, expected goals (xG), and actual goals scored. This visualization provides a clear side-by-side comparison of team performance across multiple dimensions.", 
                                style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '10px'}),
                         html.Details([
                             html.Summary("📖 Why These Statistics?", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
@@ -841,15 +889,117 @@ def update_match_visualizations(active_tab, match_id):
                 'minWidth': '600px'
             })
         
+        elif active_tab == "formations":
+            # Create formation visualizations for both teams
+            home_formation_fig = create_formation_viz(events_df, home_team)
+            away_formation_fig = create_formation_viz(events_df, away_team)
+            
+            # Set titles with team colors
+            home_formation_fig.update_layout(
+                title=f"<b><span style='color:{home_color}'>{home_team} Formation</span></b>",
+                title_x=0.5,
+                margin=dict(t=50, b=20, l=20, r=20),
+                paper_bgcolor='#f8f9fa',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            
+            away_formation_fig.update_layout(
+                title=f"<b><span style='color:{away_color}'>{away_team} Formation</span></b>",
+                title_x=0.5,
+                margin=dict(t=50, b=20, l=20, r=20),
+                paper_bgcolor='#f8f9fa',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            
+            return html.Div([
+                # Description section
+                html.Div([
+                    html.Div([
+                        html.H5("💰 Team Formations", style={'color': '#2c3e50', 'marginBottom': '10px', 'display': 'inline-block'}),
+                        html.Span(" ℹ️", style={
+                            'marginLeft': '10px', 
+                            'cursor': 'pointer', 
+                            'fontSize': '16px',
+                            'color': '#3498db'
+                        }, title="Hover over players for details")
+                    ]),
+                    html.Div([
+                        html.P("Team formations with player position heatmaps showing where each player operated during the match. Players are labeled with position acronyms (GK, CB, LW, etc.) and their names. The heatmaps reveal player movement patterns and positional tendencies. Hover over players for more details.", 
+                               style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '10px'}),
+                        html.Details([
+                            html.Summary("📖 Why Formation Visualizations?", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
+                            html.Div([
+                                html.P("• Shows actual tactical setup beyond the nominal formation", style={'margin': '5px 0', 'fontSize': '13px'}),
+                                html.P("• Reveals player movement patterns and positional flexibility", style={'margin': '5px 0', 'fontSize': '13px'}),
+                                html.P("• Alternative visualizations: Static formation diagrams or player tracking maps", style={'margin': '5px 0', 'fontSize': '13px'}),
+                                html.P("• We chose heatmap overlays to show both position and movement range", style={'margin': '5px 0', 'fontSize': '13px'})
+                            ], style={'paddingLeft': '15px', 'marginTop': '8px'})
+                        ], style={'marginTop': '10px'})
+                    ])
+                ], style={
+                    'backgroundColor': '#f8f9fa', 
+                    'padding': '15px', 
+                    'borderRadius': '10px', 
+                    'marginBottom': '20px'
+                }),
+                
+                # Interactive Formation Visualizations
+                html.Div([
+                    html.Div([
+                        html.Div([
+                            dcc.Graph(
+                                figure=home_formation_fig,
+                                config={'displayModeBar': False},
+                                style={
+                                    'height': '500px',
+                                    'width': '100%',
+                                    'borderRadius': '12px',
+                                    'boxShadow': '0 4px 15px rgba(0,0,0,0.15)'
+                                }
+                            )
+                        ], style={
+                            'backgroundColor': '#f8f9fa',
+                            'padding': '15px',
+                            'borderRadius': '12px',
+                            'boxShadow': '0 2px 10px rgba(0,0,0,0.1)'
+                        })
+                    ], style={'width': '50%', 'display': 'inline-block', 'paddingRight': '10px'}),
+                    
+                    html.Div([
+                        html.Div([
+                            dcc.Graph(
+                                figure=away_formation_fig,
+                                config={'displayModeBar': False},
+                                style={
+                                    'height': '500px',
+                                    'width': '100%',
+                                    'borderRadius': '12px',
+                                    'boxShadow': '0 4px 15px rgba(0,0,0,0.15)'
+                                }
+                            )
+                        ], style={
+                            'backgroundColor': '#f8f9fa',
+                            'padding': '15px',
+                            'borderRadius': '12px',
+                            'boxShadow': '0 2px 10px rgba(0,0,0,0.1)'
+                        })
+                    ], style={'width': '50%', 'display': 'inline-block', 'paddingLeft': '10px'}),
+                ], style={'textAlign': 'center'})
+            ])
+            
         elif active_tab == "events":
             # Key Events Timeline
             key_events = []
             
-            # Get goals
+            # Get regular goals
             goals = events_df[
                 (events_df['type'] == 'Shot') & 
                 (events_df['shot_outcome'].apply(lambda x: x.get('name', '') if isinstance(x, dict) else str(x)) == 'Goal')
             ]
+            
+            # Get own goals
+            own_goals_for = events_df[events_df['type'] == 'Own Goal For'] if 'Own Goal For' in events_df['type'].values else pd.DataFrame()
+            own_goals_against = events_df[events_df['type'] == 'Own Goal Against'] if 'Own Goal Against' in events_df['type'].values else pd.DataFrame()
             
             for _, goal in goals.iterrows():
                 team_name = goal['team'].get('name', '') if isinstance(goal['team'], dict) else str(goal['team'])
@@ -860,6 +1010,46 @@ def update_match_visualizations(active_tab, match_id):
                     'team': team_name,
                     'player': player_name,
                     'description': f"Goal by {player_name}"
+                })
+                
+            # Process own goals if there are any - avoid double counting
+            processed_og_ids = set()  # Track which events we've already processed
+            
+            # Only process Own Goal For events to avoid duplicates
+            for _, og in own_goals_for.iterrows():
+                # Skip if we've already processed this event
+                if og['id'] in processed_og_ids:
+                    continue
+                    
+                # Add this event to processed list
+                processed_og_ids.add(og['id'])
+                
+                # Find the team that benefited
+                beneficiary_team = og['team'] if isinstance(og['team'], str) else og['team'].get('name', 'Unknown') if isinstance(og['team'], dict) else 'Unknown'
+                
+                # Try to find the other team and player involved from related events
+                related_events = og.get('related_events', [])
+                scorer_team = None
+                scorer_name = 'Unknown'
+                
+                # Look for related Own Goal Against event to get the scorer
+                if related_events and not own_goals_against.empty:
+                    for _, related_og in own_goals_against.iterrows():
+                        if related_og['id'] in related_events:
+                            # Add related event to processed list
+                            processed_og_ids.add(related_og['id'])
+                            
+                            scorer_team = related_og['team'] if isinstance(related_og['team'], str) else related_og['team'].get('name', 'Unknown') if isinstance(related_og['team'], dict) else 'Unknown'
+                            scorer_name = related_og['player'] if isinstance(related_og['player'], str) else related_og['player'].get('name', 'Unknown') if isinstance(related_og['player'], dict) else 'Unknown'
+                            break
+                            
+                # Add the own goal to key events
+                key_events.append({
+                    'minute': og['minute'],
+                    'type': 'Own Goal 🥅',
+                    'team': scorer_team if scorer_team else 'Unknown',  # Team of the player who scored the own goal
+                    'player': scorer_name,
+                    'description': f"Own goal by {scorer_name} (for {beneficiary_team})"
                 })
             
             # Get cards and fouls with better detection
@@ -1076,7 +1266,7 @@ def update_match_visualizations(active_tab, match_id):
                         }, title="Timeline of important match events with color-coded teams")
                     ]),
                     html.Div([
-                        html.P("Chronological timeline of important match events including goals, cards, and substitutions. Events are color-coded by team for easy identification.", 
+                        html.P("Chronological timeline of important match events including goals, cards, substitutions, and fouls. Events are color-coded by team and include minute markers, event type with icons (⚽ for goals, 🟨 for yellow cards, etc.), and detailed descriptions. This visualization helps track the match narrative and identify key turning points. Hover over events for additional information.", 
                                style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '10px'}),
                         html.Details([
                             html.Summary("📖 Why Event Timeline?", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
