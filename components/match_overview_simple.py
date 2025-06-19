@@ -1715,15 +1715,16 @@ def update_overview_content(active_tab):
                         }, title="Goal scoring patterns across the tournament")
                     ]),
                     html.Div([
-                        html.P("This visualization shows the goal-scoring performance of each team in the tournament. Teams are ranked by total goals scored, with color intensity indicating scoring efficiency. The visualization reveals both the total goals and scoring rate, highlighting the tournament's most potent attacking teams.", 
+                        html.P("This horizontal bar chart presents a comprehensive analysis of each team's goal-scoring performance throughout the tournament. Teams are meticulously ranked by their total goals scored, with the bar's color intensity proportionally representing scoring efficiency - deeper blues indicate more prolific attacking teams. This approach allows for instant visual identification of the most dangerous offensive sides.", 
                                style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '10px'}),
                         html.Details([
-                            html.Summary("📖 Goal Analysis Insights", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
+                            html.Summary("📖 Visualization Design Choices", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
                             html.Div([
-                                html.P("• Compare total goals scored across all teams", style={'margin': '5px 0', 'fontSize': '13px'}),
-                                html.P("• See scoring efficiency (goals per match) via hover details", style={'margin': '5px 0', 'fontSize': '13px'}),
-                                html.P("• Color intensity reflects scoring potency", style={'margin': '5px 0', 'fontSize': '13px'}),
-                                html.P("• Top teams highlighted in summary statistics below", style={'margin': '5px 0', 'fontSize': '13px'})
+                                html.P(["• ", html.Strong("Why Horizontal Bars?"), " Horizontal bars provide clearer team name readability and better accommodate varying goal totals compared to vertical bar charts or radar charts. They also allow for immediate visual ranking."], style={'margin': '12px 0', 'fontSize': '13px'}),
+                                html.P(["• ", html.Strong("Color Intensity Mapping:"), " The gradient blue color scheme visually reinforces the numerical data, making it easier to identify top scoring teams at a glance without relying solely on bar length."], style={'margin': '12px 0', 'fontSize': '13px'}),
+                                html.P(["• ", html.Strong("Interactive Elements:"), " Hover details provide critical context by revealing goals per match statistics, offering insight into scoring efficiency beyond raw totals."], style={'margin': '12px 0', 'fontSize': '13px'}),
+                                html.P(["• ", html.Strong("Alternative Approaches:"), " While we could have used scatter plots (goals vs. matches) or heat maps, the horizontal bar chart provides the clearest hierarchical view of offensive performance across all teams."], style={'margin': '12px 0', 'fontSize': '13px'}),
+                                html.P(["• ", html.Strong("Complementary Displays:"), " The summary cards below spotlight top performers, providing additional metrics like goals per match and clean sheets for a more nuanced understanding of team performance."], style={'margin': '12px 0', 'fontSize': '13px'})
                             ], style={'paddingLeft': '15px', 'marginTop': '8px'})
                         ], style={'marginTop': '10px'})
                     ])
@@ -2052,16 +2053,16 @@ def update_overview_content(active_tab):
                         }, title="Tournament standings and team performance metrics")
                     ]),
                     html.Div([
-                        html.P("This visualization shows the complete tournament standings and performance metrics for all teams. The standings table is color-coded to highlight wins, draws, losses, goals scored, and goal difference. Below the table is a breakdown of match results for the top 8 teams, showing their win/draw/loss distribution.", 
+                        html.P("This dual visualization presents a comprehensive analysis of team performance. The standings table employs color-coding to instantly communicate key metrics - wins (blue), draws (yellow), losses (red), goals scored (green), and goal difference (green/red). Below, the stacked horizontal bar chart for the top 8 teams transforms win/draw/loss statistics into proportional segments, revealing performance patterns that may not be apparent from the standings table alone.", 
                                style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '10px'}),
                         html.Details([
-                            html.Summary("📖 Understanding the Table", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
+                            html.Summary("📖 Visualization Design Rationale", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
                             html.Div([
-                                html.P("• <b>MP</b>: Matches Played", style={'margin': '5px 0', 'fontSize': '13px'}),
-                                html.P("• <b>W/D/L</b>: Wins, Draws, Losses", style={'margin': '5px 0', 'fontSize': '13px'}),
-                                html.P("• <b>GF/GA</b>: Goals For, Goals Against", style={'margin': '5px 0', 'fontSize': '13px'}),
-                                html.P("• <b>GD</b>: Goal Difference (GF - GA)", style={'margin': '5px 0', 'fontSize': '13px'}),
-                                html.P("• <b>Pts</b>: Points (3 for win, 1 for draw)", style={'margin': '5px 0', 'fontSize': '13px'})
+                                html.P(["• ", html.Strong("Table vs. Chart Approach:"), " We've paired a traditional standings table with a proportional bar chart to balance familiarity with visual insight. While tables provide precise values, the stacked bars reveal patterns of consistency and performance distribution at a glance."], style={'margin': '12px 0', 'fontSize': '13px'}),
+                                html.P(["• ", html.Strong("Color Semantics:"), " The color scheme maintains conventional associations (green for wins, yellow for draws, red for losses) to facilitate intuitive understanding while providing sufficient contrast for accessibility."], style={'margin': '12px 0', 'fontSize': '13px'}),
+                                html.P(["• ", html.Strong("Interactive Elements:"), " Hover tooltips on the stacked bars reveal exact match counts and percentages, preserving precision while maintaining a clean visual presentation."], style={'margin': '12px 0', 'fontSize': '13px'}),
+                                html.P(["• ", html.Strong("Alternatives Considered:"), " While radar charts could show multiple metrics simultaneously and heat maps might emphasize extremes, the stacked bar approach best communicates the proportional relationship between wins, draws, and losses - the fundamental metrics of team performance."], style={'margin': '12px 0', 'fontSize': '13px'}),
+                                html.P(["• ", html.Strong("Key Metrics Explained:"), " ", html.Strong("MP"), " (Matches Played), ", html.Strong("W/D/L"), " (Wins/Draws/Losses), ", html.Strong("GF/GA"), " (Goals For/Against), ", html.Strong("GD"), " (Goal Difference), ", html.Strong("Pts"), " (Points: 3 for win, 1 for draw)"], style={'margin': '12px 0', 'fontSize': '13px'})
                             ], style={'paddingLeft': '15px', 'marginTop': '8px'})
                         ], style={'marginTop': '10px'})
                     ])
@@ -2220,15 +2221,16 @@ def update_overview_content(active_tab):
                         }, title="Statistical analysis of match patterns across the tournament")
                     ]),
                     html.Div([
-                        html.P("This dashboard provides statistical insights into match patterns across the tournament. Explore goal distribution, margin of victory trends, and match outcome breakdowns to understand the tournament's competitiveness and scoring dynamics.", 
+                        html.P("This multi-visualization dashboard illuminates the statistical patterns underlying the tournament's matches. The histograms reveal the distribution of goals per match and goal differences, while the pie chart breaks down match outcomes into wins (home/away) and draws. Together, these visualizations expose the tournament's competitive balance, scoring trends, and home advantage effects that aren't apparent from examining individual match results.", 
                                style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '10px'}),
                         html.Details([
-                            html.Summary("📖 Tournament Patterns", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
+                            html.Summary("📖 Data Visualization Strategy", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
                             html.Div([
-                                html.P("• Home teams won {:.1f}% of matches".format(home_win_pct), style={'margin': '5px 0', 'fontSize': '13px'}),
-                                html.P("• {:.1f}% of matches ended in a draw".format(draw_pct), style={'margin': '5px 0', 'fontSize': '13px'}),
-                                html.P("• Average of {:.2f} goals per match".format(avg_goals), style={'margin': '5px 0', 'fontSize': '13px'}),
-                                html.P("• Clean sheets: {} ({:.1f}% of all team appearances)".format(clean_sheets, clean_sheets / (total_matches * 2) * 100), style={'margin': '5px 0', 'fontSize': '13px'})
+                                html.P(["• ", html.Strong("Histogram Benefits:"), " Histograms reveal the complete distribution of goals and margins of victory, showing not just averages but the full range and frequency of different outcomes. This exposes whether the tournament featured predominantly close matches or had significant outliers."], style={'margin': '12px 0', 'fontSize': '13px'}),
+                                html.P(["• ", html.Strong("Pie Chart Rationale:"), " While pie charts are sometimes criticized for making precise comparisons difficult, in this context they provide an immediate visual impression of the balance between home wins, away wins, and draws - a fundamental tournament characteristic."], style={'margin': '12px 0', 'fontSize': '13px'}),
+                                html.P(["• ", html.Strong("Key Findings:"), " Home teams won {:.1f}% of matches, {:.1f}% ended in draws, and matches averaged {:.2f} goals with {} clean sheets ({:.1f}% of team appearances).".format(home_win_pct, draw_pct, avg_goals, clean_sheets, clean_sheets / (total_matches * 2) * 100)], style={'margin': '12px 0', 'fontSize': '13px'}),
+                                html.P(["• ", html.Strong("Alternative Approaches:"), " Line graphs tracking goals over time could show tournament progression but would miss the distributional insights. Box plots could highlight outliers but are less intuitive for general audiences than histograms."], style={'margin': '12px 0', 'fontSize': '13px'}),
+                                html.P(["• ", html.Strong("Complementary Information:"), " The summary cards above provide immediate access to key tournament statistics, while the visualizations below offer deeper insight into the patterns those numbers represent."], style={'margin': '12px 0', 'fontSize': '13px'})
                             ], style={'paddingLeft': '15px', 'marginTop': '8px'})
                         ], style={'marginTop': '10px'})
                     ])
