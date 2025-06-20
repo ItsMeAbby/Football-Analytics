@@ -85,14 +85,14 @@ def create_performance_radar_plotly(metrics, normalized_metrics, player_name, ch
                 tickvals=teicks,  # Custom ticks
                 angle=90,  # Align ticks
                 tickangle=90,  # Align tick labels
-                gridcolor='rgba(0, 0, 0, 0.2)',  # Lighter grid
-                linecolor='rgba(0, 0, 0, 0.1)'  # Lighter axis lines
+                gridcolor='rgba(0, 0, 0, 0.05)',  # Lighter grid
+                linecolor='rgba(0, 0, 0, 0.05)'  # Lighter axis lines
             ),
             angularaxis=dict(
                 tickfont=dict(size=12, color='#2c3e50'),
                 rotation=90,  # Start at top (12 o'clock)
                 direction='clockwise',
-                gridcolor='rgba(0, 0, 0, 0.1)'  # Lighter grid
+                gridcolor='rgba(0, 0, 0, 0.05)'  # Lighter grid
             ),
             bgcolor='rgba(0, 0, 0, 0.02)'  # Very light background
         ),
