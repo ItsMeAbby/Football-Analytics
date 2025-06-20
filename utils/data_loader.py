@@ -11,7 +11,7 @@ def load_euro_2024_matches():
     """Load all Euro 2024 matches"""
     return sb.matches(competition_id=55, season_id=282)
 
-@lru_cache(maxsize=10)
+@lru_cache(maxsize=20)
 def load_match_data(match_id):
     """Load event data for a specific match"""
     events = sb.events(match_id=match_id)
@@ -104,3 +104,68 @@ def get_all_players():
     players.sort()
     
     return players
+
+def warm_up_cache():
+    """
+    Pre-load data into cache to improve dashboard performance.
+    Call this before starting the server to avoid slow initial loads.
+    """
+    print("🔥 Warming up cache...")
+    
+    try:
+        # 1. Load tournament matches (cached with maxsize=1)
+        print("📊 Loading Euro 2024 matches...")
+        matches = load_euro_2024_matches()
+        print(f"✅ Loaded {len(matches)} matches")
+        
+        # 2. Load tournament data (cached with maxsize=1)  
+        print("🏆 Loading tournament data...")
+        tournament_data = load_tournament_data()
+        print(f"✅ Loaded {len(tournament_data)} events")
+        
+        # 3. Load all players (cached with maxsize=1)
+        print("👥 Loading all players...")
+        all_players = get_all_players()
+        print(f"✅ Loaded {len(all_players)} players")
+        
+        # 4. Pre-load team players for all teams (cached with maxsize=24)
+        print("🏟️  Loading team rosters...")
+        teams = get_all_teams()
+        for i, team in enumerate(teams, 1):
+            try:
+                players = get_team_players(team)
+                print(f"   {i:2d}/{len(teams)} - {team}: {len(players)} players")
+            except Exception as e:
+                print(f"   ❌ Failed to load {team}: {e}")
+        
+        # 5. Pre-load recent match data for faster access (cached with maxsize=10)
+        print("⚽ Pre-loading recent match data...")
+        recent_matches = matches.head(10)  # Load last 10 matches
+        for i, (_, match) in enumerate(recent_matches.iterrows(), 1):
+            try:
+                match_id = match['match_id']
+                home_team = match['home_team']
+                away_team = match['away_team']
+                
+                # Load both regular and sbopen data
+                events = load_match_data(match_id)
+                sbopen_data = load_sbopen_match_data(match_id)
+                
+                print(f"   {i:2d}/10 - {home_team} vs {away_team}: {len(events)} events")
+            except Exception as e:
+                print(f"   ❌ Failed to load match {match_id}: {e}")
+        
+        print("🚀 Cache warming completed successfully!")
+        
+        # Print cache stats
+        print("\n📈 Cache Statistics:")
+        print(f"   Tournament matches: {load_euro_2024_matches.cache_info()}")
+        print(f"   Tournament data: {load_tournament_data.cache_info()}")
+        print(f"   Match data: {load_match_data.cache_info()}")
+        print(f"   SBOpen data: {load_sbopen_match_data.cache_info()}")
+        print(f"   Team players: {get_team_players.cache_info()}")
+        print(f"   All players: {get_all_players.cache_info()}")
+        
+    except Exception as e:
+        print(f"❌ Error during cache warming: {e}")
+        print("⚠️  Dashboard will still work, but initial loads may be slower")

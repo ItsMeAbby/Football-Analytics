@@ -511,7 +511,6 @@ def update_player_visualizations(active_tab, selected_player, comparison_player)
                     html.Strong(selected_player), 
                     "'s shots throughout the tournament. Circle size represents the Expected Goals (xG) value of each shot, with larger circles indicating higher-probability chances. Goals are marked with a distinct football icon, while other shots use a striped pattern. This approach allows for immediate identification of shooting patterns, efficiency, and location preferences."
                 ], style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '15px'}),
-                html.Img(style={'width': '100%', 'maxWidth': '800px', 'margin': '0 auto', 'display': 'block'}, src=shot_map),
                 html.Details([
                     html.Summary("📖 Visualization Design Rationale", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer', 'marginTop': '15px'}),
                     html.Div([
@@ -520,7 +519,8 @@ def update_player_visualizations(active_tab, selected_player, comparison_player)
                         html.P(["• ", html.Strong("Spatial Positioning:"), " Shots are mapped to their exact field locations on a standard pitch, preserving the spatial relationships and allowing for analysis of shot distance, angle, and pattern preferences."], style={'margin': '12px 0', 'fontSize': '13px'}),
                         html.P(["• ", html.Strong("Alternatives Considered:"), " While we could have used heat maps or binned shot locations, individual shot plotting preserves the granularity of each attempt while still communicating patterns through visual clustering."], style={'margin': '12px 0', 'fontSize': '13px'})
                     ], style={'paddingLeft': '15px', 'marginTop': '8px'})
-                ], style={'marginTop': '10px'})
+                ], style={'marginTop': '10px'}),
+                html.Img(style={'width': '100%', 'maxWidth': '800px', 'margin': '0 auto', 'display': 'block'}, src=shot_map),
             ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '10px', 'boxShadow': '0 2px 10px rgba(0,0,0,0.1)'})
         
         elif active_tab == "heatmap-tab":

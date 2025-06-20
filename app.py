@@ -6,6 +6,7 @@ import multiprocessing
 import atexit
 import signal
 import os
+from utils.data_loader import warm_up_cache
 # Initialize Dash app
 app = dash.Dash(
     __name__, 
@@ -53,6 +54,10 @@ if __name__ == '__main__':
     # Set environment variable to limit semaphores
     os.environ["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
     
+    # Warm up cache before starting server
+    # warm_up_cache()
+    
+    print("\n🚀 Starting dashboard server...")
     # Run with threaded=True to avoid some multiprocessing issues
     app.run(debug=False, host='0.0.0.0', port=8050, threaded=True)
 

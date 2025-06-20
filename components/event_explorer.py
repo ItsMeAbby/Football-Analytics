@@ -715,8 +715,6 @@ def update_event_heatmap(match_id, event_type, player, time_range):
             ),
             colorbar=dict(
                 title='Event Density',
-                titleside='right',
-                titlefont=dict(size=14)
             ),
             opacity=0.7
         ))

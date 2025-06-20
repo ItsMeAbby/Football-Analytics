@@ -959,9 +959,53 @@ def create_formation_viz(event, related, freeze, tactics ,team_name,home=False):
             player_name = starting_xi[starting_xi['position_id'] == position].player_name.iloc[0]
             player_name = player_name.replace(' ', '\n').replace('-', '-\n')
             pitch.text(150, 40, player_name, va='top', ha='center', fontsize=15, ax=pitch_ax[position], color='#353535')
-            pitch.kdeplot(x=event.loc[event['position_id'] == position, 'x'],
-                        y=event.loc[event['position_id'] == position, 'y'],
-                        fill=True, levels=100, cut=100, cmap='Blues', thresh=0, ax=pitch_ax[position])
+            x_vals = event.loc[event['position_id'] == position, 'x'].dropna()
+            y_vals = event.loc[event['position_id'] == position, 'y'].dropna()
+            try:
+                pitch.kdeplot(
+                    x=x_vals,
+                    y=y_vals,
+                    fill=True,
+                    levels=100,
+                    cut=100,
+                    cmap='Blues',
+                    thresh=0,
+                    ax=pitch_ax[position]
+                )
+            except:
+                try:
+                    pitch.kdeplot(
+                        x=x_vals,
+                        y=y_vals,
+                        fill=True,
+                        levels=100,
+                        cut=50,
+                        cmap='Blues',
+                        thresh=0,
+                        ax=pitch_ax[position]
+                    )
+                except:
+                    if len(x_vals) > 1 and len(y_vals) > 1:
+                        pitch.kdeplot(
+                            x=x_vals,
+                            y=y_vals,
+                            fill=True,
+                            levels=100,
+                            cut=100,
+                            cmap='Blues',
+                            thresh=0,
+                            ax=pitch_ax[position]
+                        )
+                    else:
+                        pitch.scatter(
+                            x=x_vals,
+                            y=y_vals,
+                            color='blue',
+                            s=50,
+                            alpha=0.5,
+                            edgecolors='black',
+                            ax=pitch_ax[position]
+                        )
 
         return fig
     finally:
