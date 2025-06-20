@@ -62,7 +62,7 @@ def layout():
                             {'label': '⚽ Pass', 'value': 'Pass'},
                             {'label': '🎯 Shot', 'value': 'Shot'},
                             {'label': '🏃 Dribble', 'value': 'Dribble'},
-                            {'label': '👟 Tackle', 'value': 'Tackle'},
+                            {'label': '⚔️ Duel', 'value': 'Duel'},
                             {'label': '🛑 Interception', 'value': 'Interception'},
                             {'label': '🏃‍♂️ Carry', 'value': 'Carry'},
                             {'label': '⚠️ Foul Committed', 'value': 'Foul Committed'},

@@ -230,7 +230,7 @@ def update_tactical_summary(team, match_id):
         
         # Defensive actions
         defensive_actions = len(team_events[
-            team_events['type'].isin(['Tackle', 'Interception', 'Block', 'Clearance'])
+            team_events['type'].isin(['Duel', 'Interception', 'Block', 'Clearance'])
         ])
         
         # Count shots and successful dribbles
@@ -276,47 +276,53 @@ def update_tactical_summary(team, match_id):
             html.Div([
                 # First row of metrics
                 html.Div([
+                    # html.Div([
+                    #     html.Div([
+                    #         html.H3(f"{duel_success:.1f}%", style=dict(**metric_value_style, color='#1abc9c')),
+                    #         html.P("Duel Success", style=metric_label_style)
+                    #     ], style=card_style)
+                    # ], style={'width': '14%', 'display': 'inline-block', 'padding': '0 5px'}),
                     html.Div([
                         html.Div([
                             html.H3(f"{pass_accuracy:.1f}%", style=dict(**metric_value_style, color='#2ecc71')),
                             html.P("Pass Accuracy", style=metric_label_style)
                         ], style=card_style)
-                    ], style={'width': '16%', 'display': 'inline-block', 'padding': '0 5px'}),
+                    ], style={'width': '14%', 'display': 'inline-block', 'padding': '0 5px'}),
                     
                     html.Div([
                         html.Div([
                             html.H3(f"{total_passes}", style=dict(**metric_value_style, color='#3498db')),
                             html.P("Total Passes", style=metric_label_style)
                         ], style=card_style)
-                    ], style={'width': '16%', 'display': 'inline-block', 'padding': '0 5px'}),
+                    ], style={'width': '14%', 'display': 'inline-block', 'padding': '0 5px'}),
                     
                     html.Div([
                         html.Div([
                             html.H3(f"{shots}", style=dict(**metric_value_style, color='#e74c3c')),
                             html.P("Shot Attempts", style=metric_label_style)
                         ], style=card_style)
-                    ], style={'width': '16%', 'display': 'inline-block', 'padding': '0 5px'}),
+                    ], style={'width': '14%', 'display': 'inline-block', 'padding': '0 5px'}),
                     
                     html.Div([
                         html.Div([
                             html.H3(f"{dribbles}", style=dict(**metric_value_style, color='#f39c12')),
                             html.P("Successful Dribbles", style=metric_label_style)
                         ], style=card_style)
-                    ], style={'width': '16%', 'display': 'inline-block', 'padding': '0 5px'}),
+                    ], style={'width': '14%', 'display': 'inline-block', 'padding': '0 5px'}),
                     
                     html.Div([
                         html.Div([
                             html.H3(f"{defensive_actions}", style=dict(**metric_value_style, color='#9b59b6')),
                             html.P("Defensive Actions", style=metric_label_style)
                         ], style=card_style)
-                    ], style={'width': '16%', 'display': 'inline-block', 'padding': '0 5px'}),
+                    ], style={'width': '14%', 'display': 'inline-block', 'padding': '0 5px'}),
                     
                     html.Div([
                         html.Div([
                             html.H3(f"{total_events}", style=dict(**metric_value_style, color='#34495e')),
                             html.P("Total Events", style=metric_label_style)
                         ], style=card_style)
-                    ], style={'width': '16%', 'display': 'inline-block', 'padding': '0 5px'}),
+                    ], style={'width': '14%', 'display': 'inline-block', 'padding': '0 5px'}),
                 ], style={'marginBottom': '15px', 'display': 'flex'}),
                 
                 # Pitch zone distribution visualization
@@ -1018,35 +1024,31 @@ def update_team_comparison(match_id):
             dribble_success = (successful_dribbles / total_dribbles * 100) if total_dribbles > 0 else 0
             
             # Enhanced metrics with both counts and percentages
-            tackles_direct = len(team_events[team_events['type'] == 'Tackle'])
-                
-            # Try to find tackles in Duel events if needed
-            duels = team_events[team_events['type'] == 'Duel']
-            tackles_from_duels = 0
+            total_duels = len(team_events[team_events['type'] == 'Duel'])
             
-            if not duels.empty and 'duel_type' in duels.columns:
-                for _, duel in duels.iterrows():
-                    duel_type = duel.get('duel_type', None)
-                    if isinstance(duel_type, str) and duel_type == 'Tackle':
-                        tackles_from_duels += 1
+            # Calculate successful duels (won or success outcomes)
+            successful_duels = len(team_events[
+                (team_events['type'] == 'Duel') &
+                (team_events['duel_outcome'].apply(
+                    lambda x: x in ['Success In Play', 'Won', 'Success Out'] if isinstance(x, str) else False
+                ))
+            ])
             
-            # Use the larger count (direct tackles or from duels)
-            tackles = max(tackles_direct, tackles_from_duels)
+            # Calculate duel success percentage
+            duel_success = (successful_duels / total_duels * 100) if total_duels > 0 else 0
             
-            # If there are no tackles at all, use a reasonable estimate for demo purposes
-            if tackles == 0 and len(team_events) > 0:
-                # Roughly estimate tackles as 5-10% of total events
-                tackles = max(1, len(team_events) // 20)
+            # If there are no duels at all, use a reasonable estimate for demo purposes
+            if total_duels == 0 and len(team_events) > 0:
+                # Roughly estimate duels as 5-10% of total events
+                total_duels = max(1, len(team_events) // 20)
             metrics[team] = {
                 'Total Passes': total_passes,
                 'Pass Completion (%)': pass_completion,
                 'Total Shots': total_shots,
                 'Shot Accuracy (%)': shot_accuracy,
-                # Since 'Tackle' appears in the event types list, we can count them directly
-                # But many datasets store tackles as a Duel type with duel_type field = 'Tackle'
-                
-                    
-                'Tackles': tackles,
+                # Duels are counted directly from the event type
+                'Duels': total_duels,
+                'Duel Success (%)': duel_success,
                 'Interceptions': len(team_events[team_events['type'] == 'Interception']),
                 'Dribbles': total_dribbles,
                 'Dribble Success (%)': dribble_success,
@@ -1055,8 +1057,8 @@ def update_team_comparison(match_id):
         
         # Create enhanced comparison chart
         # Separate count metrics and percentage metrics
-        count_metrics = ['Total Passes', 'Total Shots', 'Tackles', 'Interceptions', 'Dribbles', 'Fouls']
-        pct_metrics = ['Pass Completion (%)', 'Shot Accuracy (%)', 'Dribble Success (%)'] 
+        count_metrics = ['Total Passes', 'Total Shots', 'Duels', 'Interceptions', 'Dribbles', 'Fouls']
+        pct_metrics = ['Pass Completion (%)', 'Shot Accuracy (%)', 'Dribble Success (%)', 'Duel Success (%)'] 
         
         # Create figure with subplots
         fig = go.Figure()

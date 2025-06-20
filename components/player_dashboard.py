@@ -10,6 +10,177 @@ import matplotlib.pyplot as plt  # Added missing plt import
 from utils.data_loader import load_tournament_data, get_all_teams, get_team_players, get_all_players
 from utils.plot_utils_mpl import create_shot_map, create_heatmap, create_progressive_passes_viz, matplotlib_plot_as_base64  # Added missing import
 
+def create_performance_radar_plotly(metrics, normalized_metrics, player_name, chart_title=None, color_scheme=None):
+    """Create a Plotly radar chart for player performance metrics with hover functionality"""
+    # Set up the categories and values
+    categories = list(normalized_metrics.keys())
+    values = list(normalized_metrics.values())
+    
+    # Set default color scheme if not provided
+    if color_scheme is None:
+        color_scheme = {
+            'fill': 'rgba(52, 152, 219, 0.4)',  # #3498db with 0.4 alpha
+            'line': '#3498db',
+            'marker': '#3498db'
+        }
+    
+    # Close the loop by appending the first value at the end
+    categories_closed = categories + [categories[0]]
+    values_closed = values + [values[0]]
+    
+    # Prepare the radar chart angles (clockwise from top)
+    num_categories = len(categories)
+    angles = [n / float(num_categories) * 2 * np.pi for n in range(num_categories)]
+    angles = [angle - np.pi/2 for angle in angles]  # Start at 12 o'clock (negative pi/2)
+    
+    # Calculate the angles for drawing (close the loop)
+    theta = angles + [angles[0]]
+    
+    # Create a new figure
+    fig = go.Figure()
+    
+    # Add the radar chart trace
+    fig.add_trace(go.Scatterpolar(
+        r=values_closed,
+        theta=categories_closed,
+        fill='toself',
+        fillcolor=color_scheme['fill'],
+        line=dict(
+            color=color_scheme['line'],
+            width=2
+        ),
+        hovertemplate='<b>%{theta}</b><br>Value: %{r:.1f}%<br>Raw: %{customdata}<extra></extra>',
+        customdata=[metrics[cat] for cat in categories_closed],  # Add raw values for hover
+        name=player_name
+    ))
+    
+    # Add markers for each data point with hover information
+    fig.add_trace(go.Scatterpolar(
+        r=values,
+        theta=categories,
+        mode='markers+text',
+        marker=dict(
+            size=10,
+            color=color_scheme['marker'],
+            line=dict(color='white', width=1)
+        ),
+        text=[str(metrics[cat]) for cat in categories],  # Show raw values as text
+        textposition='middle right',
+        textfont=dict(color='#2c3e50', size=10),
+        hovertemplate='<b>%{theta}</b><br>Value: %{r:.1f}%<br>Raw: %{text}<extra></extra>',
+        showlegend=False
+    ))
+    
+    # Set the chart title
+    if chart_title is None:
+        chart_title = f"Performance Radar - {player_name}"
+    teicks=[10, 20, 30, max(40, max(values) + 10)] if chart_title == "Volume Metrics" else [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    # Configure the layout for the radar chart
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, max(40, max(values) + 10)],  # Dynamic range based on values
+                tickfont=dict(size=10),
+                tickvals=teicks,  # Custom ticks
+                angle=90,  # Align ticks
+                tickangle=90,  # Align tick labels
+                gridcolor='rgba(0, 0, 0, 0.2)',  # Lighter grid
+                linecolor='rgba(0, 0, 0, 0.1)'  # Lighter axis lines
+            ),
+            angularaxis=dict(
+                tickfont=dict(size=12, color='#2c3e50'),
+                rotation=90,  # Start at top (12 o'clock)
+                direction='clockwise',
+                gridcolor='rgba(0, 0, 0, 0.1)'  # Lighter grid
+            ),
+            bgcolor='rgba(0, 0, 0, 0.02)'  # Very light background
+        ),
+        title=dict(
+            text=chart_title,
+            font=dict(size=15, color='#2c3e50'),
+            y=0.95
+        ),
+        paper_bgcolor='white',  # Match the container background
+        plot_bgcolor='white',
+        margin=dict(l=30, r=30, t=80, b=30),
+        height=500,
+        width=600,  # Reduced width to allow side-by-side display
+        autosize=True,
+        showlegend=False,
+        hoverlabel=dict(
+            font=dict(size=12, family='Arial'),
+            bgcolor='white',
+            bordercolor=color_scheme['line']
+        )
+    )
+    
+    return fig
+
+def calculate_success_rates(player_events):
+    """Calculate success rates for different action types"""
+    # Initialize metrics dictionary
+    success_metrics = {}
+    
+    # Calculate pass success rate
+    total_passes = len(player_events[player_events['type'] == 'Pass'])
+    successful_passes = len(player_events[
+        (player_events['type'] == 'Pass') & 
+        (player_events['pass_outcome'].isna())  # Successful passes have no outcome
+    ])
+    success_metrics['Pass Success'] = (successful_passes / total_passes * 100) if total_passes > 0 else 0
+    
+    # Calculate dribble success rate
+    total_dribbles = len(player_events[player_events['type'] == 'Dribble'])
+    successful_dribbles = len(player_events[
+        (player_events['type'] == 'Dribble') & 
+        (player_events['dribble_outcome'].apply(
+            lambda x: x == 'Complete' if isinstance(x, str) else False
+        ))
+    ])
+    success_metrics['Dribble Success'] = (successful_dribbles / total_dribbles * 100) if total_dribbles > 0 else 0
+    
+    # Calculate shot success rate (goals/shots)
+    total_shots = len(player_events[player_events['type'] == 'Shot'])
+    successful_shots = len(player_events[
+        (player_events['type'] == 'Shot') & 
+        (player_events['shot_outcome'].apply(
+            lambda x: x == 'Goal' if isinstance(x, str) else False
+        ))
+    ])
+    success_metrics['Shot Success'] = (successful_shots / total_shots * 100) if total_shots > 0 else 0
+    
+    # Calculate duel success rate
+    total_duels = len(player_events[player_events['type'] == 'Duel'])
+    successful_duels = len(player_events[
+        (player_events['type'] == 'Duel') & 
+        (player_events['duel_outcome'].apply(
+            lambda x: x in ['Success In Play', 'Won', 'Success Out'] if isinstance(x, str) else False
+        ))
+    ])
+    success_metrics['Duel Success'] = (successful_duels / total_duels * 100) if total_duels > 0 else 0
+    
+    # Calculate interception success rate
+    total_interceptions = len(player_events[player_events['type'] == 'Interception'])
+    successful_interceptions = len(player_events[
+        (player_events['type'] == 'Interception') & 
+        (player_events['interception_outcome'].apply(
+            lambda x: x in ['Success In Play', 'Won', 'Success Out'] if isinstance(x, str) else False
+        ))
+    ])
+    success_metrics['Interception Success'] = (successful_interceptions / total_interceptions * 100) if total_interceptions > 0 else 0
+    
+    # Create raw metrics dictionary with the same counts
+    raw_metrics = {
+        'Pass Success': successful_passes,
+        'Dribble Success': successful_dribbles,
+        'Shot Success': successful_shots,
+        'Duel Success': successful_duels,
+        'Interception Success': successful_interceptions
+    }
+    
+    return success_metrics, raw_metrics
+
 def layout():
     return html.Div([
         # Header for player analysis
@@ -380,88 +551,93 @@ def update_player_visualizations(active_tab, selected_player):
                 'Shots': len(player_events[player_events['type'] == 'Shot']),
                 'Passes': len(player_events[player_events['type'] == 'Pass']),
                 'Dribbles': len(player_events[player_events['type'] == 'Dribble']),
-                'Tackles': len(player_events[player_events['type'] == 'Tackle']),
+                'Duels': len(player_events[player_events['type'] == 'Duel']),
                 'Interceptions': len(player_events[player_events['type'] == 'Interception'])
             }
             
             # Normalize metrics for radar chart (0-100 scale)
-            max_vals = {'Goals': 10, 'Shots': 50, 'Passes': 500, 'Dribbles': 50, 'Tackles': 30, 'Interceptions': 20}
+            max_vals = {'Goals': 3, 'Shots': 25, 'Passes': 562, 'Dribbles': 32, 'Duels': 31, 'Interceptions': 12}
             normalized_metrics = {k: min(100, (v / max_vals[k]) * 100) for k, v in metrics.items()}
             
-            # Create matplotlib radar chart instead of plotly
-            fig, ax = plt.subplots(figsize=(10, 10), subplot_kw=dict(polar=True))
+            # Create a Plotly radar chart with hover functionality for volume metrics
+            volume_fig = create_performance_radar_plotly(
+                metrics, 
+                normalized_metrics, 
+                selected_player,
+                chart_title="Volume Metrics",
+                color_scheme={
+                    'fill': 'rgba(52, 152, 219, 0.4)',  # Blue
+                    'line': '#3498db',
+                    'marker': '#3498db'
+                }
+            )
             
-            # Number of variables
-            categories = list(normalized_metrics.keys())
-            N = len(categories)
+            # Calculate success rates for different action types
+            success_metrics, raw_success_metrics = calculate_success_rates(player_events)
             
-            # What will be the angle of each axis in the plot (divide the plot / number of variables)
-            angles = [n / float(N) * 2 * np.pi for n in range(N)]
-            angles += angles[:1]  # Close the loop
+            # Success metrics are already percentages, just ensure they're capped at 100%
+            normalized_success_metrics = {k: min(v, 100) for k, v in success_metrics.items()}
             
-            # Values to plot
-            values = list(normalized_metrics.values())
-            values += values[:1]  # Close the loop
-            
-            # Draw the plot
-            ax.plot(angles, values, linewidth=2, linestyle='solid', color='#3498db')
-            ax.fill(angles, values, color='#3498db', alpha=0.4)
-            
-            # Fix axis to go in the right order and start at 12 o'clock
-            ax.set_theta_offset(np.pi / 2)
-            ax.set_theta_direction(-1)
-            
-            # Draw axis lines for each angle and label
-            ax.set_xticks(angles[:-1])
-            ax.set_xticklabels(categories, fontsize=12)
-            
-            # Draw ylabels (0-100 scale) - use a smaller scale to make the radar more visible
-            max_scale = max(40, max(values) + 10)  # Dynamic scale based on actual values
-            ax.set_yticks([10, 20, 30, max_scale])
-            ax.set_yticklabels(['10', '20', '30', f'{int(max_scale)}'], fontsize=10)
-            ax.set_ylim(0, max_scale)  # Limit the scale to make radar plot more visible
-            
-            # Add title
-            plt.title(f"Performance Radar - {selected_player}", size=15, color='#2c3e50', y=1.08)
-            
-            # Add raw values as text annotations
-            for i, category in enumerate(categories):
-                raw_value = metrics[category]
-                angle_rad = angles[i]
-                # Calculate position slightly outside the data point
-                x = (values[i] + 5) * np.cos(angle_rad)
-                y = (values[i] + 5) * np.sin(angle_rad)
-                plt.text(angle_rad, values[i] + 5, f"{raw_value}", 
-                         ha='center', va='center', fontsize=9, 
-                         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8))
-            
-            radar_chart = matplotlib_plot_as_base64(fig)
+            # Create a Plotly radar chart for success rates
+            success_fig = create_performance_radar_plotly(
+                raw_success_metrics,
+                normalized_success_metrics,
+                selected_player,
+                chart_title="Success Rates",
+                color_scheme={
+                    'fill': 'rgba(46, 204, 113, 0.4)',  # Green
+                    'line': '#2ecc71',
+                    'marker': '#2ecc71'
+                }
+            )
             
             return html.Div([
                 html.Div([
-                    html.H5("📈 Performance Metrics", style={'color': '#2c3e50', 'marginBottom': '10px', 'display': 'inline-block'}),
+                    html.H5("📈 Player Performance Analysis", style={'color': '#2c3e50', 'marginBottom': '10px', 'textAlign': 'center', 'fontSize': '20px'}),
                     html.Span(" ℹ️", style={
                         'marginLeft': '10px', 
                         'cursor': 'pointer', 
                         'fontSize': '16px',
                         'color': '#3498db'
-                    }, title="Multi-dimensional player analysis across key metrics")
+                    }, title="Multi-dimensional player analysis across key metrics and success rates")
                 ]),
                 html.P([
-                    "This radar chart provides a multi-dimensional analysis of ", 
+                    "These radar charts provide a comprehensive analysis of ", 
                     html.Strong(selected_player), 
-                    "'s performance across six key metrics: Goals, Shots, Passes, Dribbles, Tackles, and Interceptions. Each metric is normalized on a 0-100 scale relative to tournament maximums, with raw values shown as numerical annotations. The radar's shape reveals the player's profile and strengths across different aspects of the game."
-                ], style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '15px'}),
+                    "'s performance profile. The left chart shows volume metrics (Goals, Shots, Passes, Dribbles, Duels, and Interceptions), while the right chart displays success rates across different action types. Together, they reveal both the player's activity levels and efficiency."
+                ], style={'fontSize': '14px', 'color': '#7f8c8d', 'marginBottom': '15px', 'textAlign': 'center'}),
+                # Two radar charts side by side
+                html.Div([
+                    html.Div([
+                        html.H6("Volume Metrics", style={'textAlign': 'center', 'marginBottom': '5px', 'color': '#3498db'}),
+                        html.P("Raw counts normalized to tournament maximums", style={'fontSize': '12px', 'color': '#7f8c8d', 'textAlign': 'center', 'marginBottom': '10px'}),
+                        dcc.Graph(
+                            figure=volume_fig,
+                            style={'height': '450px'},
+                            config={'displayModeBar': False}
+                        )
+                    ], style={'width': '50%', 'display': 'inline-block', 'verticalAlign': 'top'}),
+                    
+                    html.Div([
+                        html.H6("Success Rates", style={'textAlign': 'center', 'marginBottom': '5px', 'color': '#2ecc71'}),
+                        html.P("Percentage of successful outcomes by action type", style={'fontSize': '12px', 'color': '#7f8c8d', 'textAlign': 'center', 'marginBottom': '10px'}),
+                        dcc.Graph(
+                            figure=success_fig,
+                            style={'height': '450px'},
+                            config={'displayModeBar': False}
+                        )
+                    ], style={'width': '50%', 'display': 'inline-block', 'verticalAlign': 'top'})
+                ]),
+                
                 html.Details([
                     html.Summary("📖 Visualization Design Rationale", style={'fontWeight': 'bold', 'color': '#34495e', 'cursor': 'pointer'}),
                     html.Div([
-                        html.P(["• ", html.Strong("Radar Chart Format:"), " This visualization type efficiently communicates a player's multi-dimensional profile in a compact format. The distinctive shape creates a memorable 'signature' of player characteristics that's immediately recognizable."], style={'margin': '12px 0', 'fontSize': '13px'}),
-                        html.P(["• ", html.Strong("Normalized Scaling:"), " Each metric is normalized on a 0-100 scale against reasonable tournament maximums, allowing for fair comparison across different statistical categories with vastly different raw ranges."], style={'margin': '12px 0', 'fontSize': '13px'}),
-                        html.P(["• ", html.Strong("Dual Information Display:"), " The chart combines the visual shape with numerical annotations showing exact counts, balancing the pattern-recognition benefits of the radar with precise quantitative information."], style={'margin': '12px 0', 'fontSize': '13px'}),
-                        html.P(["• ", html.Strong("Alternatives Considered:"), " Bar charts would better show exact values but lose the profile shape, while spider charts with more metrics would provide greater detail but potentially overwhelm with complexity."], style={'margin': '12px 0', 'fontSize': '13px'})
+                        html.P(["• ", html.Strong("Dual Radar Approach:"), " By separating volume metrics from success rates, we provide a more nuanced view of player performance that balances quantity and quality of actions."], style={'margin': '12px 0', 'fontSize': '13px'}),
+                        html.P(["• ", html.Strong("Color Distinction:"), " Blue for volume metrics and green for success rates creates a clear visual separation while maintaining a cohesive design language."], style={'margin': '12px 0', 'fontSize': '13px'}),
+                        html.P(["• ", html.Strong("Normalized Scaling:"), " Volume metrics are normalized against tournament maximums, while success rates show actual percentages, providing both relative and absolute performance measures."], style={'margin': '12px 0', 'fontSize': '13px'}),
+                        html.P(["• ", html.Strong("Interactive Elements:"), " Hover functionality on both charts reveals the exact values behind the visualizations, allowing for deeper exploration of the player's statistical profile."], style={'margin': '12px 0', 'fontSize': '13px'})
                     ], style={'paddingLeft': '15px', 'marginTop': '8px'})
-                ], style={'marginTop': '10px'}),
-                html.Img(style={'width': '100%', 'maxWidth': '800px', 'margin': '0 auto', 'display': 'block'}, src=radar_chart)
+                ], style={'marginTop': '15px', 'clear': 'both'})
             ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '10px', 'boxShadow': '0 2px 10px rgba(0,0,0,0.1)'})
 
             
