@@ -897,72 +897,76 @@ def get_formation_offsets(formation: str) -> list:
 
 def create_formation_viz(event, related, freeze, tactics ,team_name,home=False):
     """Create formation visualization with player position heatmaps"""
-    # Filter the events to get only the team's data
-    # team_events = events_df[events_df['team'].apply(
-    #     lambda x: x.get('name', '') == team_name if isinstance(x, dict) else str(x) == team_name
-    # )].copy()
-    starting_xi_event = event.loc[((event['type_name'] == 'Starting XI') &
-                               (event['team_name'] == team_name)), ['id', 'tactics_formation']]
-    if starting_xi_event.empty:
-        return go.Figure().add_annotation(text="No starting XI data available for this team", 
-                                        xref="paper", yref="paper", x=0.5, y=0.5)
-    starting_xi = tactics.merge(starting_xi_event, on='id')
-    # if name has 3  or more words, keep first and last word
-    starting_xi['player_name'] = starting_xi['player_name'].apply(lambda x: ' '.join(x.split()[:1] + x.split()[-1:]) if len(x.split()) >= 3 else x)
-    event = event.loc[((event['type_name'] == 'Ball Receipt') &
-                   (event['outcome_name'].isnull()) &
-                   (event['player_id'].isin(starting_xi['player_id']))
-                    ), ['player_id', 'x', 'y']]
-    # merge on the starting positions to the events
-    event = event.merge(starting_xi, on='player_id')
-    
-    
+    try:
+        # Filter the events to get only the team's data
+        # team_events = events_df[events_df['team'].apply(
+        #     lambda x: x.get('name', '') == team_name if isinstance(x, dict) else str(x) == team_name
+        # )].copy()
+        starting_xi_event = event.loc[((event['type_name'] == 'Starting XI') &
+                                (event['team_name'] == team_name)), ['id', 'tactics_formation']]
+        if starting_xi_event.empty:
+            return go.Figure().add_annotation(text="No starting XI data available for this team", 
+                                            xref="paper", yref="paper", x=0.5, y=0.5)
+        starting_xi = tactics.merge(starting_xi_event, on='id')
+        # if name has 3  or more words, keep first and last word
+        starting_xi['player_name'] = starting_xi['player_name'].apply(lambda x: ' '.join(x.split()[:1] + x.split()[-1:]) if len(x.split()) >= 3 else x)
+        event = event.loc[((event['type_name'] == 'Ball Receipt') &
+                    (event['outcome_name'].isnull()) &
+                    (event['player_id'].isin(starting_xi['player_id']))
+                        ), ['player_id', 'x', 'y']]
+        # merge on the starting positions to the events
+        event = event.merge(starting_xi, on='player_id')
+        
+        
 
-    if event.empty:
-        return go.Figure().add_annotation(text="No formation data available", 
-                                        xref="paper", yref="paper", x=0.5, y=0.5)
-    formation = event['tactics_formation'].iloc[0] if home else event['tactics_formation'].iloc[1]
-    # Get starting XI event and lineup
+        if event.empty:
+            return go.Figure().add_annotation(text="No formation data available", 
+                                            xref="paper", yref="paper", x=0.5, y=0.5)
+        formation = event['tactics_formation'].iloc[0] if home else event['tactics_formation'].iloc[1]
+        # Get starting XI event and lineup
 
-    pitch = VerticalPitch(goal_type='box')
-    fig, axs = pitch.grid(endnote_height=0, title_height=0.08, figheight=14, grid_width=0.9,
-                        grid_height=0.9, axis=False)
-    
+        pitch = VerticalPitch(goal_type='box')
+        fig, axs = pitch.grid(endnote_height=0, title_height=0.08, figheight=14, grid_width=0.9,
+                            grid_height=0.9, axis=False)
+        
 
-    pitch_ax = pitch.formation(formation,
-                            kind='pitch',
-                            # avoid overlapping pitches with offsets
-                            xoffset = get_formation_offsets(formation),
-                            # pitch is 23 units long (could also set the height).
-                            # note this is set assuming the pitch is horizontal, but in this example
-                            # it is vertical so that you get the same results
-                            # from both VerticalPitch and Pitch
-                            width=23,
-                            positions=starting_xi['position_id'],
-                            ax=axs['pitch'],
-                            # additional arguments temporarily amend the pitch appearance
-                            # note we are plotting a really faint positional grid
-                            # that overlays the kdeplot
-                            linewidth=0.5,
-                            pitch_color='None',
-                            line_zorder=3,
-                            line_color='black',
-                            positional=True,
-                            positional_zorder=3,
-                            positional_linewidth=1,
-                            positional_alpha=0.3,
-                            )
+        pitch_ax = pitch.formation(formation,
+                                kind='pitch',
+                                # avoid overlapping pitches with offsets
+                                xoffset = get_formation_offsets(formation),
+                                # pitch is 23 units long (could also set the height).
+                                # note this is set assuming the pitch is horizontal, but in this example
+                                # it is vertical so that you get the same results
+                                # from both VerticalPitch and Pitch
+                                width=23,
+                                positions=starting_xi['position_id'],
+                                ax=axs['pitch'],
+                                # additional arguments temporarily amend the pitch appearance
+                                # note we are plotting a really faint positional grid
+                                # that overlays the kdeplot
+                                linewidth=0.5,
+                                pitch_color='None',
+                                line_zorder=3,
+                                line_color='black',
+                                positional=True,
+                                positional_zorder=3,
+                                positional_linewidth=1,
+                                positional_alpha=0.3,
+                                )
 
-    # adding kdeplot and player titles
-    for position in pitch_ax:
-        player_name = starting_xi[starting_xi['position_id'] == position].player_name.iloc[0]
-        player_name = player_name.replace(' ', '\n').replace('-', '-\n')
-        pitch.text(150, 40, player_name, va='top', ha='center', fontsize=15, ax=pitch_ax[position], color='#353535')
-        pitch.kdeplot(x=event.loc[event['position_id'] == position, 'x'],
-                    y=event.loc[event['position_id'] == position, 'y'],
-                    fill=True, levels=100, cut=100, cmap='Blues', thresh=0, ax=pitch_ax[position])
+        # adding kdeplot and player titles
+        for position in pitch_ax:
+            player_name = starting_xi[starting_xi['position_id'] == position].player_name.iloc[0]
+            player_name = player_name.replace(' ', '\n').replace('-', '-\n')
+            pitch.text(150, 40, player_name, va='top', ha='center', fontsize=15, ax=pitch_ax[position], color='#353535')
+            pitch.kdeplot(x=event.loc[event['position_id'] == position, 'x'],
+                        y=event.loc[event['position_id'] == position, 'y'],
+                        fill=True, levels=100, cut=100, cmap='Blues', thresh=0, ax=pitch_ax[position])
 
-    return fig
+        return fig
+    finally:
+        # Ensure any resources are cleaned up even if an error occurs
+        plt.close('all')
 
 # Dictionary for position acronyms
 positions_dict_acronym = {
@@ -1008,4 +1012,5 @@ def matplotlib_plot_as_base64(fig):
     buf.seek(0)
     encoded = base64.b64encode(buf.getvalue()).decode('utf-8')
     plt.close(fig) # Close the figure to free memory
+    plt.close('all') # Ensure all other figures are also closed
     return f"data:image/png;base64,{encoded}"

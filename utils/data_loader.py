@@ -5,7 +5,7 @@ from mplsoccer import  Sbopen
 import pandas as pd
 import numpy as np
 from functools import lru_cache
-parser = Sbopen()
+# Avoid creating parser as a global object to prevent semaphore leaks
 @lru_cache(maxsize=1)
 def load_euro_2024_matches():
     """Load all Euro 2024 matches"""
@@ -24,6 +24,9 @@ def load_match_data(match_id):
 def load_sbopen_match_data(match_id):
     """Load event data for a specific match using sbopen"""
     
+    # Create a new parser instance for each call to avoid semaphore leaks
+    # This ensures proper cleanup of multiprocessing resources
+    parser = Sbopen()
     event, related, freeze, tactics = parser.event(match_id)
     return event, related, freeze, tactics
 @lru_cache(maxsize=1)
