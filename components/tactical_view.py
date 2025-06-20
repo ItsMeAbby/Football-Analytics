@@ -321,50 +321,73 @@ def update_tactical_summary(team, match_id):
                 
                 # Pitch zone distribution visualization
                 html.Div([
-                    html.H5("Pitch Zone Distribution", style={'textAlign': 'center', 'color': '#2c3e50', 'marginBottom': '10px', 'marginTop': '10px'}),
+                    html.Div([
+                        html.H5("Pitch Zone Distribution", style={'textAlign': 'center', 'color': '#2c3e50', 'marginBottom': '10px', 'marginTop': '5px', 'display': 'inline-block'}),
+                        html.Span(" ℹ️", id="zone-distribution-info", style={
+                            'marginLeft': '10px', 
+                            'cursor': 'pointer', 
+                            'fontSize': '16px',
+                            'color': '#3498db'
+                        }, title="Shows how team activities are distributed across the pitch zones. Hover over zones for detailed information.")
+                    ], style={'textAlign': 'center', 'marginBottom': '10px'}),
                     html.Div([
                         # Zone percentage bars
                         html.Div([
-                            html.Div(style={
+                            # Attacking third with hover details
+                            html.Div(id="attacking-third-bar", style={
                                 'backgroundColor': '#e74c3c',  # Red for attacking third
                                 'width': f"{attacking_pct}%", 
                                 'height': '24px',
                                 'display': 'inline-block',
                                 'position': 'relative',
-                                'borderRadius': '4px 0 0 4px' if attacking_pct < 100 else '4px'
-                            }),
-                            html.Div(style={
+                                'borderRadius': '4px 0 0 4px' if attacking_pct < 100 else '4px',
+                                'cursor': 'pointer'
+                            }, title=f"Attacking Third: {attacking_pct:.1f}%\nEvents: {attacking_third_events}\nLocation: x > 80"),
+                            # Middle third with hover details
+                            html.Div(id="middle-third-bar", style={
                                 'backgroundColor': '#3498db',  # Blue for middle third
                                 'width': f"{middle_pct}%", 
                                 'height': '24px',
                                 'display': 'inline-block',
-                                'position': 'relative'
-                            }),
-                            html.Div(style={
+                                'position': 'relative',
+                                'cursor': 'pointer'
+                            }, title=f"Middle Third: {middle_pct:.1f}%\nEvents: {middle_third_events}\nLocation: 40 ≤ x ≤ 80"),
+                            # Defensive third with hover details
+                            html.Div(id="defensive-third-bar", style={
                                 'backgroundColor': '#2ecc71',  # Green for defensive third
                                 'width': f"{defensive_pct}%", 
                                 'height': '24px',
                                 'display': 'inline-block',
                                 'position': 'relative',
-                                'borderRadius': '0 4px 4px 0' if defensive_pct < 100 else '4px'
-                            }),
+                                'borderRadius': '0 4px 4px 0' if defensive_pct < 100 else '4px',
+                                'cursor': 'pointer'
+                            }, title=f"Defensive Third: {defensive_pct:.1f}%\nEvents: {defensive_third_events}\nLocation: x < 40"),
                         ], style={'width': '100%', 'textAlign': 'center', 'marginBottom': '5px'}),
                         
-                        # Zone labels
+                        # Zone labels with hover details
                         html.Div([
                             html.Div([
-                                html.Span(f"Attacking Third: {attacking_pct:.1f}%", 
-                                         style={'fontSize': '12px', 'color': '#e74c3c', 'fontWeight': 'bold'})
+                                html.Span(f"Attacking Third: {attacking_pct:.1f}%", id="attacking-third-label", 
+                                         style={'fontSize': '12px', 'color': '#e74c3c', 'fontWeight': 'bold', 'cursor': 'pointer'},
+                                         title=f"The final third of the pitch closest to the opponent's goal.\nEvents: {attacking_third_events}\nPercentage: {attacking_pct:.1f}%")
                             ], style={'width': '33%', 'display': 'inline-block', 'textAlign': 'center'}),
                             html.Div([
-                                html.Span(f"Middle Third: {middle_pct:.1f}%", 
-                                         style={'fontSize': '12px', 'color': '#3498db', 'fontWeight': 'bold'})
+                                html.Span(f"Middle Third: {middle_pct:.1f}%", id="middle-third-label", 
+                                         style={'fontSize': '12px', 'color': '#3498db', 'fontWeight': 'bold', 'cursor': 'pointer'},
+                                         title=f"The central area of the pitch where buildup play typically occurs.\nEvents: {middle_third_events}\nPercentage: {middle_pct:.1f}%")
                             ], style={'width': '33%', 'display': 'inline-block', 'textAlign': 'center'}),
                             html.Div([
-                                html.Span(f"Defensive Third: {defensive_pct:.1f}%", 
-                                         style={'fontSize': '12px', 'color': '#2ecc71', 'fontWeight': 'bold'})
+                                html.Span(f"Defensive Third: {defensive_pct:.1f}%", id="defensive-third-label", 
+                                         style={'fontSize': '12px', 'color': '#2ecc71', 'fontWeight': 'bold', 'cursor': 'pointer'},
+                                         title=f"The area closest to the team's own goal where defensive actions are concentrated.\nEvents: {defensive_third_events}\nPercentage: {defensive_pct:.1f}%")
                             ], style={'width': '33%', 'display': 'inline-block', 'textAlign': 'center'}),
-                        ], style={'width': '100%', 'marginTop': '5px'})
+                        ], style={'width': '100%', 'marginTop': '5px'}),
+                        
+                        # Explanation text that appears when hovering over the info icon
+                        html.Div([
+                            html.P("This visualization shows how a team's actions are distributed across the three main zones of the pitch. Higher percentages in the attacking third indicate a team that spends more time in offensive positions, while higher defensive third percentages suggest a more defensive approach.", 
+                                 style={'fontSize': '12px', 'color': '#7f8c8d', 'fontStyle': 'italic', 'marginTop': '8px', 'marginBottom': '0px'})
+                        ])
                     ])
                 ], style={'marginTop': '10px', 'backgroundColor': '#f8f9fa', 'padding': '15px', 'borderRadius': '10px'})
             ])
