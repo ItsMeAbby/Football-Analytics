@@ -287,42 +287,42 @@ def update_tactical_summary(team, match_id):
                             html.H3(f"{pass_accuracy:.1f}%", style=dict(**metric_value_style, color='#2ecc71')),
                             html.P("Pass Accuracy", style=metric_label_style)
                         ], style=card_style)
-                    ], style={'width': '14%', 'display': 'inline-block', 'padding': '0 5px'}),
+                    ], style={'width': '16%', 'display': 'inline-block', 'padding': '0 5px'}),
                     
                     html.Div([
                         html.Div([
                             html.H3(f"{total_passes}", style=dict(**metric_value_style, color='#3498db')),
                             html.P("Total Passes", style=metric_label_style)
                         ], style=card_style)
-                    ], style={'width': '14%', 'display': 'inline-block', 'padding': '0 5px'}),
+                    ], style={'width': '16%', 'display': 'inline-block', 'padding': '0 5px'}),
                     
                     html.Div([
                         html.Div([
                             html.H3(f"{shots}", style=dict(**metric_value_style, color='#e74c3c')),
                             html.P("Shot Attempts", style=metric_label_style)
                         ], style=card_style)
-                    ], style={'width': '14%', 'display': 'inline-block', 'padding': '0 5px'}),
+                    ], style={'width': '16%', 'display': 'inline-block', 'padding': '0 5px'}),
                     
                     html.Div([
                         html.Div([
                             html.H3(f"{dribbles}", style=dict(**metric_value_style, color='#f39c12')),
                             html.P("Successful Dribbles", style=metric_label_style)
                         ], style=card_style)
-                    ], style={'width': '14%', 'display': 'inline-block', 'padding': '0 5px'}),
+                    ], style={'width': '16%', 'display': 'inline-block', 'padding': '0 5px'}),
                     
                     html.Div([
                         html.Div([
                             html.H3(f"{defensive_actions}", style=dict(**metric_value_style, color='#9b59b6')),
                             html.P("Defensive Actions", style=metric_label_style)
                         ], style=card_style)
-                    ], style={'width': '14%', 'display': 'inline-block', 'padding': '0 5px'}),
+                    ], style={'width': '16%', 'display': 'inline-block', 'padding': '0 5px'}),
                     
                     html.Div([
                         html.Div([
                             html.H3(f"{total_events}", style=dict(**metric_value_style, color='#34495e')),
                             html.P("Total Events", style=metric_label_style)
                         ], style=card_style)
-                    ], style={'width': '14%', 'display': 'inline-block', 'padding': '0 5px'}),
+                    ], style={'width': '16%', 'display': 'inline-block', 'padding': '0 5px'}),
                 ], style={'marginBottom': '15px', 'display': 'flex'}),
                 
                 # Pitch zone distribution visualization

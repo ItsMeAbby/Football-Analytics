@@ -44,13 +44,12 @@ def create_shot_map(events_df, team_name, player_name=None):
     if player_name:
         shots_df = shots_df[shots_df['player'].apply(get_entity_name) == player_name]
 
-    # Check for necessary columns x, y, shot_statsbomb_xg, shot_outcome
-    required_cols = ['x', 'y', 'shot_statsbomb_xg', 'shot_outcome']
-    if not all(col in shots_df.columns for col in required_cols):
+    # Check for necessary columns: x, y
+    if 'x' not in shots_df.columns or 'y' not in shots_df.columns:
         fig, ax = plt.subplots(figsize=(12, 8))
-        ax.text(0.5, 0.5, "Missing required columns (x, y, shot_statsbomb_xg, or shot_outcome).", 
+        ax.text(0.5, 0.5, "Missing required columns (x, y) for shot map.", 
                   ha='center', va='center', fontsize=10)
-        ax.set_title(f"Shot Map - {team_name}" + (f" - {player_name}" if player_name else ""), fontsize=16)
+        ax.set_title(f"Shot Map - {team_name or 'None'}" + (f" - {player_name}" if player_name else ""), fontsize=16)
         return matplotlib_plot_as_base64(fig)
         
     if shots_df.empty:
@@ -59,18 +58,30 @@ def create_shot_map(events_df, team_name, player_name=None):
         pitch.draw(ax=ax)
         ax.text(60, 40, "No shot data available", ha='center', va='center', fontsize=12, color='red',
                 transform=ax.transData) # Use transData for pitch coordinates if pitch is drawn
-        ax.set_title(f"Shot Map - {team_name}" + (f" - {player_name}" if player_name else ""), fontsize=16)
+        ax.set_title(f"Shot Map - {team_name or 'None'}" + (f" - {player_name}" if player_name else ""), fontsize=16)
         return matplotlib_plot_as_base64(fig)
 
+    # Create a default xG value if not available
+    if 'shot_statsbomb_xg' not in shots_df.columns:
+        # Use a default value (0.05) if xG not available
+        shots_df['shot_statsbomb_xg'] = 0.05
+        print("Warning: shot_statsbomb_xg not found, using default value")
+    
+    # Create outcome field if not available
+    if 'shot_outcome' not in shots_df.columns:
+        shots_df['outcome_name'] = 'Off Target'
+        print("Warning: shot_outcome not found, using default value")
+    else:
+        # Ensure shot_outcome is parsed correctly if it's a dict
+        shots_df['outcome_name'] = shots_df['shot_outcome'].apply(lambda x: get_entity_name(x) if isinstance(x, dict) else str(x))
+
+    # Setup the pitch
     pitch = VerticalPitch(pitch_type='statsbomb', half=True, pad_bottom=-10, line_zorder=2, line_color='grey')
     fig, ax = pitch.draw(figsize=(12, 8))
     fig.set_facecolor('white')
     ax.set_facecolor('white')
 
-    # Define colors for outcomes (similar to example)
-    # Ensure shot_outcome is parsed correctly if it's a dict
-    shots_df['outcome_name'] = shots_df['shot_outcome'].apply(lambda x: get_entity_name(x) if isinstance(x, dict) else str(x))
-
+    # Find goals based on outcome
     goals = shots_df[shots_df['outcome_name'] == 'Goal']
     other_shots = shots_df[shots_df['outcome_name'] != 'Goal']
 
@@ -99,7 +110,7 @@ def create_shot_map(events_df, team_name, player_name=None):
                       label='Goal')
 
     ax.legend(facecolor='#EFE9E6', handlelength=3, edgecolor='None', fontsize=12, loc='lower left', framealpha=0.7)
-    title_text = f"Shot Map - {team_name}" + (f" - {player_name}" if player_name else "")
+    title_text = f"Shot Map - {team_name or 'None'}" + (f" - {player_name}" if player_name else "")
     ax.set_title(title_text, fontsize=18, color='black', pad=15)
     
     return matplotlib_plot_as_base64(fig)
@@ -195,92 +206,161 @@ def create_heatmap(events_df, player_name, event_types=None):
         ax.text(0.5, 0.5, "Column 'type' not found in DataFrame.", ha='center', va='center', fontsize=12)
         return matplotlib_plot_as_base64(fig)
 
-    player_events = events_df[
-        (events_df['player'].apply(get_entity_name) == player_name) &
-        (events_df['type'].isin(event_types))
-    ].copy()
+    # Filter for player events
+    player_events = events_df[events_df['player'].apply(get_entity_name) == player_name].copy()
+    
+    # Further filter by event types if they exist in the data
+    available_types = set(events_df['type'].unique())
+    valid_types = [t for t in event_types if t in available_types]
+    
+    if valid_types:
+        player_events = player_events[player_events['type'].isin(valid_types)]
 
-    required_event_cols = ['x', 'y']
-    if not all(col in player_events.columns for col in required_event_cols):
+    # Check for the required x, y columns
+    if 'x' not in player_events.columns or 'y' not in player_events.columns:
         fig, ax = plt.subplots(figsize=(12, 8))
         ax.text(0.5, 0.5, "Missing required columns (x, y) for heatmap.", 
                   ha='center', va='center', fontsize=10)
         ax.set_title(f"Touch Heatmap - {player_name}", fontsize=16)
         return matplotlib_plot_as_base64(fig)
 
+    # Setup the pitch
     pitch = VerticalPitch(pitch_type='statsbomb', line_zorder=2, line_color='black', pitch_color='white')
     fig, ax = pitch.draw(figsize=(10, 7))
     fig.set_facecolor('white')
 
-    if player_events.empty or player_events[['x', 'y']].isnull().all().all():
+    # Check if we have valid event data
+    if player_events.empty or player_events['x'].dropna().empty or player_events['y'].dropna().empty:
         ax.text(40, 60, "No event data for heatmap", ha='center', va='center', fontsize=12, color='red', transform=ax.transData)
         ax.set_title(f"Touch Heatmap - {player_name}", fontsize=16, color='black', pad=10)
         return matplotlib_plot_as_base64(fig)
     
-    # Create heatmap
-    # Using kdeplot for smooth heatmap, or bin_statistic for binned heatmap
-    # For binned heatmap as in example:
-    bin_statistic = pitch.bin_statistic(player_events.x.dropna(), player_events.y.dropna(), statistic='count', bins=(6, 5), normalize=True)
-    
-    # Custom colormap like example
-    # colour1="white", colour2="#c3c3c3", colour3="#e21017" # From example
-    # cmaplist = [colour1, colour2, colour3]
-    # cmap = LinearSegmentedColormap.from_list("", cmaplist)
-    cmap = LinearSegmentedColormap.from_list("", ["white", "lightcoral", "red"]) # Simpler red cmap
+    # Create heatmap using bin_statistic
+    try:
+        # Use smaller bins (more detailed) and only valid x,y data
+        bin_statistic = pitch.bin_statistic(
+            player_events.x.dropna(), 
+            player_events.y.dropna(), 
+            statistic='count', 
+            bins=(6, 5), 
+            normalize=True
+        )
+        
+        # Simple red colormap
+        cmap = LinearSegmentedColormap.from_list("", ["white", "lightcoral", "red"])
 
-    pitch.heatmap(bin_statistic, ax=ax, cmap=cmap, edgecolor='grey')
-    labels = pitch.label_heatmap(bin_statistic, color='black', fontsize=10,
-                                 ax=ax, str_format='{:.0%}', ha='center', va='center',
-                                 path_effects=[path_effects.Stroke(linewidth=1, foreground='white')])
+        # Draw the heatmap
+        pitch.heatmap(bin_statistic, ax=ax, cmap=cmap, edgecolor='grey')
+        
+        # Add percentage labels
+        labels = pitch.label_heatmap(
+            bin_statistic, 
+            color='black', 
+            fontsize=10,
+            ax=ax, 
+            str_format='{:.0%}', 
+            ha='center', 
+            va='center',
+            path_effects=[path_effects.Stroke(linewidth=1, foreground='white')]
+        )
+    except Exception as e:
+        # If something goes wrong with the heatmap, provide fallback visualization
+        print(f"Error creating heatmap: {e}")
+        ax.text(40, 60, f"Error creating heatmap: {str(e)}", 
+                ha='center', va='center', fontsize=10, color='red',
+                transform=ax.transData)
 
+    # Set title
     ax.set_title(f"Touch Heatmap - {player_name}", fontsize=18, color='black', pad=15)
     return matplotlib_plot_as_base64(fig)
 
 def create_progressive_passes_viz(events_df, team_name):
     """Create visualization for progressive passes using Matplotlib"""
-    # Filter progressive passes
+    # Check for required type column
     if 'type' not in events_df.columns:
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.text(0.5, 0.5, "Column 'type' not found in DataFrame.", ha='center', va='center', fontsize=12)
         return matplotlib_plot_as_base64(fig)
         
-    prog_passes = events_df[
-        (events_df['type'] == 'Pass') &
-        (events_df['team'].apply(get_entity_name) == team_name) &
-        (events_df['pass_outcome'].isna()) &
-        # Statsbomb X progression definition can be complex. Simple definition based on distance:
-        ( (events_df['pass_end_x'] - events_df['x'] > 10) & (events_df['x'] < 60) ) | # Start in own half, move 10m
-        ( (events_df['pass_end_x'] - events_df['x'] > 10) & (events_df['x'] >= 60) & (events_df['pass_end_x'] > events_df['x']) ) # Start in opp half, move 10m forward
-        # A more common definition: If starts in own half, must end in opp half OR travel 30m. If starts in opp half, must travel 10m.
-        # For simplicity, using the 10m forward rule if not into final third.
-        # Or, like example, passes into final third: (events_df.x<80)&(events_df.pass_end_x>80)
-    ].copy()
-
-    required_prog_cols = ['player', 'x', 'pass_end_x'] # Add more if your definition requires
-    if not all(col in prog_passes.columns for col in required_prog_cols):
+    # Check if we have pass data
+    if len(events_df[events_df['type'] == 'Pass']) == 0:
         fig, ax = plt.subplots(figsize=(10, 6))
-        ax.text(0.5, 0.5, "Missing required columns for progressive passes.", 
-                  ha='center', va='center', fontsize=10)
-        ax.set_title(f"Progressive Passes - {team_name}", fontsize=16)
+        ax.text(0.5, 0.5, "No pass data available.", ha='center', va='center', fontsize=12)
         return matplotlib_plot_as_base64(fig)
-
-    if prog_passes.empty:
+    
+    # Check for required coordinates
+    if 'x' not in events_df.columns or 'pass_end_x' not in events_df.columns:
         fig, ax = plt.subplots(figsize=(10, 6))
-        ax.text(0.5, 0.5, "No progressive pass data available", ha='center', va='center', fontsize=12, color='red')
+        ax.text(0.5, 0.5, "Missing required columns (x, pass_end_x) for progressive passes.", 
+                ha='center', va='center', fontsize=10)
         ax.set_title(f"Progressive Passes - {team_name}", fontsize=16)
         return matplotlib_plot_as_base64(fig)
     
+    # Get passes for the team
+    team_passes = events_df[
+        (events_df['type'] == 'Pass') &
+        (events_df['team'].apply(get_entity_name) == team_name)
+    ].copy()
+    
+    # If we have outcome info, filter for successful passes
+    if 'pass_outcome' in team_passes.columns:
+        team_passes = team_passes[team_passes['pass_outcome'].isna()]
+    
+    # Filter for only rows with valid x and pass_end_x (not NaN)
+    team_passes = team_passes.dropna(subset=['x', 'pass_end_x'])
+    
+    if team_passes.empty:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.text(0.5, 0.5, f"No pass data available for team: {team_name}", 
+                ha='center', va='center', fontsize=12, color='red')
+        ax.set_title(f"Progressive Passes - {team_name}", fontsize=16)
+        return matplotlib_plot_as_base64(fig)
+        
+    # Define progressive passes (simplified for robustness)
+    # Consider a pass progressive if it moves forward at least 10 meters
+    team_passes['progressive'] = (team_passes['pass_end_x'] - team_passes['x']) > 10
+    
+    prog_passes = team_passes[team_passes['progressive'] == True].copy()
+    
+    if prog_passes.empty:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.text(0.5, 0.5, "No progressive pass data available", 
+                ha='center', va='center', fontsize=12, color='red')
+        ax.set_title(f"Progressive Passes - {team_name}", fontsize=16)
+        return matplotlib_plot_as_base64(fig)
+    
+    # Get player names and count progressive passes
     prog_passes['player_name'] = prog_passes['player'].apply(get_entity_name)
     player_counts = prog_passes.groupby('player_name').size().reset_index(name='progressive_passes')
     player_counts = player_counts.sort_values('progressive_passes', ascending=True)
     
-    fig, ax = plt.subplots(figsize=(10, max(6, len(player_counts) * 0.5))) # Adjust height
-    ax.barh(player_counts['player_name'], player_counts['progressive_passes'], 
-            color='skyblue', edgecolor='black')
+    # Create the horizontal bar chart
+    fig, ax = plt.subplots(figsize=(10, max(6, len(player_counts) * 0.5))) # Adjust height based on # of players
     
+    bars = ax.barh(
+        player_counts['player_name'], 
+        player_counts['progressive_passes'], 
+        color='skyblue', 
+        edgecolor='black'
+    )
+    
+    # Add labels to the bars
+    for bar in bars:
+        width = bar.get_width()
+        ax.text(width + 0.5, bar.get_y() + bar.get_height()/2, f"{width:.0f}", 
+                ha='left', va='center', fontweight='bold')
+    
+    # Customize the chart
     ax.set_xlabel("Number of Progressive Passes", fontsize=12)
     ax.set_ylabel("Player", fontsize=12)
     ax.set_title(f"Progressive Passes - {team_name}", fontsize=16, pad=15)
+    
+    # Set x-axis to start at 0
+    ax.set_xlim(0, max(player_counts['progressive_passes']) * 1.1)
+    
+    # Add grid lines for better readability
+    ax.grid(axis='x', linestyle='--', alpha=0.7)
+    
     plt.tight_layout() # Adjust layout to prevent labels cutting off
     
     return matplotlib_plot_as_base64(fig)

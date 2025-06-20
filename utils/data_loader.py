@@ -32,12 +32,19 @@ def load_sbopen_match_data(match_id):
 @lru_cache(maxsize=1)
 def load_tournament_data():
     """Load all event data for Euro 2024"""
-    return sb.competition_events(
+    events = sb.competition_events(
         country='Europe',
         division='UEFA Euro',
         season='2024',
         gender="male"
     )
+    
+    # Process coordinates
+    events[['x', 'y']] = events['location'].apply(pd.Series)
+    events[['pass_end_x', 'pass_end_y']] = events['pass_end_location'].apply(pd.Series)
+    events[['carry_end_x', 'carry_end_y']] = events['carry_end_location'].apply(pd.Series)
+    
+    return events
 
 def get_team_matches(team_name):
     """Get matches for a specific team"""
