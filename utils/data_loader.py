@@ -63,3 +63,34 @@ def get_tournament_stats():
         'total_goals': matches['home_score'].sum() + matches['away_score'].sum(),
         'avg_goals_per_match': (matches['home_score'].sum() + matches['away_score'].sum()) / len(matches)
     }
+
+@lru_cache(maxsize=24)
+def get_team_players(team_name):
+    """Get all players for a specific team with caching"""
+    events_df = load_tournament_data()
+    team_events = events_df[
+        events_df['team'].apply(
+            lambda x: x.get('name', '') == team_name if isinstance(x, dict) else str(x) == team_name
+        )
+    ]
+    
+    # Get unique players
+    players = team_events['player'].apply(
+        lambda x: x.get('name', 'Unknown') if isinstance(x, dict) else str(x)
+    ).unique()
+    players = [p for p in players if p != 'Unknown' and pd.notna(p)]
+    players.sort()
+    
+    return players
+
+@lru_cache(maxsize=1)
+def get_all_players():
+    """Get all players in the tournament with caching"""
+    events_df = load_tournament_data()
+    players = events_df['player'].apply(
+        lambda x: x.get('name', 'Unknown') if isinstance(x, dict) else str(x)
+    ).unique()
+    players = [p for p in players if p != 'Unknown' and pd.notna(p)]
+    players.sort()
+    
+    return players

@@ -45,7 +45,7 @@ def layout():
                     dcc.Dropdown(
                         id='team-dropdown',
                         options=[{'label': team, 'value': team} for team in teams],
-                        value=teams[0] if teams else None,
+                        value='Spain' if 'Spain' in teams else teams[0] if teams else None,
                         placeholder="Select a team...",
                         style={'marginBottom': '10px'}
                     )
@@ -1299,6 +1299,40 @@ def update_match_visualizations(active_tab, match_id):
                     'marginBottom': '25px'
                 }),
                 
+                # Team color legend
+                html.Div([
+                    html.H5("Team Color Legend", style={'fontSize': '16px', 'marginBottom': '10px', 'color': '#2c3e50'}),
+                    html.Div([
+                        html.Div([
+                            html.Div(style={
+                                'width': '20px', 
+                                'height': '20px', 
+                                'backgroundColor': home_color,
+                                'display': 'inline-block',
+                                'marginRight': '8px',
+                                'borderRadius': '4px'
+                            }),
+                            html.Span(f"{home_team}", style={'fontSize': '14px'})
+                        ], style={'display': 'flex', 'alignItems': 'center', 'marginRight': '20px'}),
+                        html.Div([
+                            html.Div(style={
+                                'width': '20px', 
+                                'height': '20px', 
+                                'backgroundColor': away_color,
+                                'display': 'inline-block',
+                                'marginRight': '8px',
+                                'borderRadius': '4px'
+                            }),
+                            html.Span(f"{away_team}", style={'fontSize': '14px'})
+                        ], style={'display': 'flex', 'alignItems': 'center'}),
+                    ], style={'display': 'flex', 'marginBottom': '15px'})
+                ], style={
+                    'backgroundColor': '#ecf0f1',
+                    'padding': '10px 15px',
+                    'borderRadius': '10px',
+                    'marginBottom': '15px'
+                }),
+                
                 # Events list
                 html.Div([
                     html.Div(
@@ -1332,7 +1366,7 @@ def update_match_visualizations(active_tab, match_id):
                                 'borderRadius': '10px',
                                 'marginBottom': '8px',
                                 'boxShadow': '0 2px 5px rgba(0,0,0,0.1)'
-                            }, title=f"Team: {event['team']}")
+                            })
                         ]) for event in key_events] if key_events else [
                             html.Div([
                                 html.P("No key events recorded for this match.", 

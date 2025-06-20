@@ -151,11 +151,14 @@ def layout():
 
 @callback(
     Output('tactical-team-dropdown', 'options'),
+    Output('tactical-team-dropdown', 'value'),
     Input('tactical-team-dropdown', 'id')
 )
 def update_tactical_team_options(_):
     teams = get_all_teams()
-    return [{'label': team, 'value': team} for team in teams]
+    options = [{'label': team, 'value': team} for team in teams]
+    default_team = 'Spain' if 'Spain' in teams else teams[0] if teams else None
+    return options, default_team
 
 @callback(
     Output('tactical-match-dropdown', 'options'),
