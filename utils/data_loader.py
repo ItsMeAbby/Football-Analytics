@@ -11,16 +11,36 @@ def load_euro_2024_matches():
     """Load all Euro 2024 matches"""
     return sb.matches(competition_id=55, season_id=282)
 
-@lru_cache(maxsize=20)
+@lru_cache(maxsize=2)
 def load_match_data(match_id):
     """Load event data for a specific match"""
     events = sb.events(match_id=match_id)
-    # Process coordinates
-    events[['x', 'y']] = events['location'].apply(pd.Series)
-    events[['pass_end_x', 'pass_end_y']] = events['pass_end_location'].apply(pd.Series)
-    events[['carry_end_x', 'carry_end_y']] = events['carry_end_location'].apply(pd.Series)
+    # Process coordinates efficiently to avoid DataFrame fragmentation
+    # Extract coordinates into separate DataFrames and concat all at once
+    coord_dfs = []
+    
+    if 'location' in events.columns:
+        location_coords = events['location'].apply(pd.Series)
+        location_coords.columns = ['x', 'y']
+        coord_dfs.append(location_coords)
+    
+    if 'pass_end_location' in events.columns:
+        pass_end_coords = events['pass_end_location'].apply(pd.Series)
+        pass_end_coords.columns = ['pass_end_x', 'pass_end_y']
+        coord_dfs.append(pass_end_coords)
+    
+    if 'carry_end_location' in events.columns:
+        carry_end_coords = events['carry_end_location'].apply(pd.Series)
+        carry_end_coords.columns = ['carry_end_x', 'carry_end_y']
+        coord_dfs.append(carry_end_coords)
+    
+    # Concatenate all coordinate columns at once to avoid fragmentation
+    if coord_dfs:
+        all_coords = pd.concat(coord_dfs, axis=1)
+        events = pd.concat([events, all_coords], axis=1)
+    
     return events
-@lru_cache(maxsize=10)
+@lru_cache(maxsize=2)
 def load_sbopen_match_data(match_id):
     """Load event data for a specific match using sbopen"""
     
@@ -39,10 +59,28 @@ def load_tournament_data():
         gender="male"
     )
     
-    # Process coordinates
-    events[['x', 'y']] = events['location'].apply(pd.Series)
-    events[['pass_end_x', 'pass_end_y']] = events['pass_end_location'].apply(pd.Series)
-    events[['carry_end_x', 'carry_end_y']] = events['carry_end_location'].apply(pd.Series)
+    # Process coordinates efficiently to avoid DataFrame fragmentation
+    coord_dfs = []
+    
+    if 'location' in events.columns:
+        location_coords = events['location'].apply(pd.Series)
+        location_coords.columns = ['x', 'y']
+        coord_dfs.append(location_coords)
+    
+    if 'pass_end_location' in events.columns:
+        pass_end_coords = events['pass_end_location'].apply(pd.Series)
+        pass_end_coords.columns = ['pass_end_x', 'pass_end_y']
+        coord_dfs.append(pass_end_coords)
+    
+    if 'carry_end_location' in events.columns:
+        carry_end_coords = events['carry_end_location'].apply(pd.Series)
+        carry_end_coords.columns = ['carry_end_x', 'carry_end_y']
+        coord_dfs.append(carry_end_coords)
+    
+    # Concatenate all coordinate columns at once to avoid fragmentation
+    if coord_dfs:
+        all_coords = pd.concat(coord_dfs, axis=1)
+        events = pd.concat([events, all_coords], axis=1)
     
     return events
 
