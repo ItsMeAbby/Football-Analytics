@@ -201,7 +201,7 @@ def create_pass_network(events_df, team_name, match_id=None):
         )) &
         (events_df['pass_outcome'].isna())  # Only successful passes
     ].copy()
-    passes_df.to_csv(team_name + '_passes.csv', index=False)  # Save passes for debugging
+    # passes_df.to_csv(team_name + '_passes.csv', index=False)  # Save passes for debugging
     
     if passes_df.empty:
         return go.Figure().add_annotation(text="No pass data available", 
