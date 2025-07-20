@@ -6,7 +6,6 @@
 \usepackage{amssymb}
 \usepackage{graphicx}
 \usepackage{geometry}
-\usepackage{hyperref}
 \usepackage{float}
 \usepackage{listings}
 \usepackage{xcolor}
@@ -14,7 +13,7 @@
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{fancyhdr}
-
+\usepackage[hidelinks]{hyperref}
 \geometry{margin=1in}
 \pagestyle{fancy}
 \fancyhf{}
@@ -30,7 +29,8 @@
     % University logo space (if available)
     \vspace*{1cm}
     
-    % University name
+    %The visualizations presented in this appendix demonstrate the practical implementation of the theoretical frameworks discussed throughout this document:
+
     {\Large \textbf{HOCHSCHULE FULDA} \par}
     {\large \textbf{UNIVERSITY OF APPLIED SCIENCES} \par}
     \vspace{0.5cm}
@@ -89,7 +89,7 @@ Key achievements include implementation of real-time data filtering, multi-dimen
 
 Football analytics has evolved significantly in recent years, with data-driven insights becoming crucial for tactical understanding, player evaluation, and strategic decision-making. The UEFA Euro 2024 tournament provided an excellent opportunity to develop a comprehensive analytics platform that bridges the gap between raw event data and actionable insights.
 
-The primary motivation was to create an accessible yet sophisticated tool that enables different stakeholders—from casual fans to tactical analysts—to explore football data through intuitive visualizations while maintaining analytical rigor.
+The primary motivation was to create an accessible yet sophisticated tool that enables different stakeholders from casual fans to tactical analysts to explore football data through intuitive visualizations while maintaining analytical rigor.
 
 \subsection{System Objectives}
 
@@ -109,7 +109,7 @@ The system is built on StatsBomb's open football dataset, which provides event-l
 
 \subsection{StatsBomb Dataset Overview}
 
-The foundation of our analytics platform is StatsBomb's comprehensive UEFA Euro 2024 dataset, accessed through their official Python API (\texttt{statsbombpy}). This dataset represents one of the most detailed publicly available football datasets, containing event-level information for all tournament matches.
+The foundation of our analytics platform is StatsBomb's comprehensive UEFA Euro 2024 dataset\footnote{See: \url{https://github.com/statsbomb/open-data}}, accessed through their official Python API (\texttt{statsbombpy}\footnote{See: \url{https://github.com/statsbomb/statsbombpy}}). This dataset represents one of the most detailed publicly available football datasets, containing event-level information for all tournament matches.
 
 \paragraph{Dataset Characteristics:}
 \begin{itemize}
@@ -121,10 +121,11 @@ The foundation of our analytics platform is StatsBomb's comprehensive UEFA Euro 
 \end{itemize}
 
 \section{Visualization Design and Implementation}
+\label{sec:visualization_design}
 
 \subsection{Tournament Overview Dashboard}
 
-The tournament overview component provides high-level tournament statistics and insights through an intuitive header with key metrics and three main analysis tabs.
+The tournament overview component provides high-level tournament statistics and insights through an intuitive header with key metrics and three main analysis tabs. While traditional EDA (Explorative Data Analysis) often begins with univariate and bivariate statistics, our dataset comprising event timelines from football matches necessitated a top-down approach. Therefore, we started with a tournament overview and progressively drilled down to match-level and player-level insights, ensuring comprehensive coverage from the broadest patterns to the most granular details.
 
 
 \subsubsection{Key Stats}
@@ -142,7 +143,7 @@ This tab presents a comprehensive horizontal bar chart ranking teams by total go
 
 
 \subsubsection{Team Performance Tab}
-Features dual visualizations: a comprehensive standings table with color-coded metrics and a stacked horizontal bar chart showing win/draw/loss percentages for top teams. The table uses semantic colors (green for positive outcomes, red for negative) while the bar chart reveals performance consistency patterns.
+Features dual visualizations: a comprehensive standings table with color-coded metrics and a stacked horizontal bar chart showing win/draw/loss percentages for top teams. The table uses semantic colors (green for positive outcomes, red for negative) while the bar chart reveals performance consistency patterns. Figure \ref{fig:team_comparison} in Appendix A demonstrates the practical implementation of this comprehensive team analysis approach.
 
 
 \subsubsection{Match Insights Tab}
@@ -151,20 +152,24 @@ Presents tournament-wide statistical patterns through histograms showing goals p
 
 
 \subsection{Match Overview Dashboard}
+\label{sec:match_overview}
 
 The match overview component provides comprehensive match analysis through a hierarchical layout with team/match selection and six coordinated visualization tabs. 
 
 \subsubsection{Shot Maps with Expected Goals (xG) Visualization}
+\label{sec:shot_maps}
 Shot maps employ spatial positioning combined with size encoding to represent shot quality:
 \begin{itemize}
     \item \textbf{Spatial Encoding}: Shot locations on accurate football pitch representation using mplsoccer coordinates
     \item \textbf{Size Encoding}: Circle size proportional to xG value for immediate quality assessment
     \item \textbf{Color Encoding}: Distinct colors for goals versus other shot outcomes (goals in red, shots in blue)
-    \item \textbf{Interactive Features}: Hover details with player names, xG values, and shot context
+    \item \textbf{Interactive Features}: Hover details with xG values, and shot outcome
 \end{itemize}
 
+Figure \ref{fig:shot_map} demonstrates the practical implementation of this shot visualization methodology.
 
 \subsubsection{Pass Network Analysis}
+\label{sec:pass_network}
 Pass networks utilize force-directed graph layouts combined with spatial positioning to reveal team structure and player relationships:
 \begin{itemize}
     \item \textbf{Node Size}: Proportional to passing involvement (total passes + receptions)
@@ -172,6 +177,8 @@ Pass networks utilize force-directed graph layouts combined with spatial positio
     \item \textbf{Spatial Layout}: Average field positions determine node placement
     \item \textbf{Label Strategy}: Position acronyms for tactical clarity over player names
 \end{itemize}
+
+A detailed example of this network analysis implementation is shown in Figure \ref{fig:pass_network}, demonstrating the Spain vs England passing relationships during their UEFA Euro 2024 encounter.
 
 
 
@@ -187,6 +194,7 @@ xG progression visualization uses cumulative line charts with event annotations 
 
 
 \subsubsection{Match Statistics Tab}
+\label{sec:match_statistics}
 Comprehensive side-by-side team comparison using symmetric horizontal bar charts:
 \begin{itemize}
     \item \textbf{Symmetric Layout}: Teams displayed on opposite sides for direct comparison
@@ -205,16 +213,20 @@ Chronological visualization of significant match events with color-coded team id
 \end{itemize}
 
 \subsubsection{Formations Analysis Tab}
-Team formation visualization using matplotlib with position density overlays:
+\label{sec:formations_analysis}
+Team formation visualization using mplsoccer with individual player activity density plots:
 \begin{itemize}
-    \item \textbf{Average Position Calculation}: Player positions computed from first 15 minutes
-    \item \textbf{Heat map Overlays}: Player activity density shown across pitch zones
-    \item \textbf{Formation Recognition}: Tactical setup identified and labeled
-    \item \textbf{Position Offset Application}: Overlapping positions separated for visual clarity
+    \item \textbf{Formation Grid Layout}: Individual subplots for each player position using mplsoccer's formation grid system
+    \item \textbf{Activity Density Visualization}: KDE plots showing player movement patterns based on Ball Receipt events
+    \item \textbf{Formation Recognition}: Tactical setup identified and labeled from Starting XI data
+    \item \textbf{Position Offset Application}: Predefined formation-specific offsets prevent overlapping position displays
 \end{itemize}
+
+The practical implementation of this formation analysis is illustrated in Figure \ref{fig:formations}, showing the tactical positioning and formation structure visualization.
 
 
 \subsection{Player Performance Dashboard}
+\label{sec:player_performance}
 
 The player performance dashboard provides individual player analysis through a hierarchical selection interface and four specialized visualization tabs.
 
@@ -234,6 +246,7 @@ Displays player-specific shot maps using matplotlib with precise spatial positio
 
 
 \subsubsection{Touch Heatmap Tab}
+\label{sec:touch_heatmap}
 Employs binned spatial analysis using a 6x5 grid system rather than continuous density estimation:
 \begin{itemize}
     \item \textbf{Grid-Based Analysis}: 30 standardized zones providing interpretable spatial regions
@@ -241,6 +254,8 @@ Employs binned spatial analysis using a 6x5 grid system rather than continuous d
     \item \textbf{Color Intensity Mapping}: White-to-red gradient indicating activity frequency
     \item \textbf{Cross-Player Standardization}: Consistent binning enables direct player comparisons
 \end{itemize}
+
+Figure \ref{fig:touch_heatmap} demonstrates this grid-based approach, showing how player activity is distributed across standardized pitch zones with percentage-based quantification.
 
 
 \subsubsection{Progressive Actions Tab}
@@ -254,6 +269,7 @@ Analyzes forward ball progression through horizontal bar charts showing progress
 
 
 \subsubsection{Performance Metrics Tab}
+\label{sec:performance_metrics}
 Introduces innovative dual radar chart methodology separating volume and success rate metrics:
 \begin{itemize}
     \item \textbf{Volume Radar}: Goals, shots, passes, dribbles, duels, interceptions (normalized to 0-100 scale)
@@ -262,13 +278,17 @@ Introduces innovative dual radar chart methodology separating volume and success
     \item \textbf{Multi-Player Overlay}: Comparison player data overlaid for direct performance comparison
 \end{itemize}
 
+The implementation of this dual radar chart innovation is showcased in Figure \ref{fig:player_performance}, demonstrating how volume and success rate metrics are effectively separated to prevent analytical confusion.
+
 
 
 \subsection{Tactical Analysis Component}
+\label{sec:tactical_analysis}
 
 The tactical analysis component focuses on team-level patterns and strategic insights through a hierarchical selection interface and four specialized analysis types.
 
 \subsubsection{Formation Analysis Tab}
+\label{sec:tactical_formation}
 Displays team shape and player positioning through comprehensive formation visualization:
 \begin{itemize}
     \item \textbf{Average Position Calculation}: Player positions computed from first 15 minutes of match data
@@ -328,6 +348,7 @@ Symmetric horizontal bar charts enable immediate tactical comparison between bot
 
 
 \subsection{Event Explorer Interface}
+\label{sec:event_explorer}
 
 The event explorer provides granular access to raw event data through a comprehensive filtering interface and three main visualization tabs with integrated data export capabilities.
 
@@ -343,6 +364,7 @@ Displays temporal event distribution with enhanced analytical capabilities:
 
 
 \subsubsection{Event Heatmap Tab}
+\label{sec:event_heatmap}
 Combines spatial accuracy with statistical insights through football pitch-based density visualization:
 \begin{itemize}
     \item \textbf{Spatial Event Density}: Event concentration mapped to accurate football pitch coordinates
@@ -350,6 +372,8 @@ Combines spatial accuracy with statistical insights through football pitch-based
     \item \textbf{Density Gradient Encoding}: Color intensity indicates event frequency with darker areas showing higher activity
     \item \textbf{Filter Integration}: Heatmap updates based on event type and player selections
 \end{itemize}
+
+Figure \ref{fig:events_heatmap} illustrates this comprehensive spatial analysis approach, showing how all match events are mapped to accurate football pitch coordinates with density-based visualization.
 
 
 
@@ -386,6 +410,7 @@ Dynamic summary panel providing filtered dataset context:
 
 
 \section{Visualization Design Philosophy and Approach Selection}
+\label{sec:design_philosophy}
 
 This section consolidates the design rationale and alternative approaches considered for each dashboard component, providing comprehensive insight into the visualization selection methodology employed throughout the analytics platform.
 
@@ -464,7 +489,7 @@ Line charts effectively communicate momentum changes and enable easy comparison 
 
 \subsubsection{Player Shot Analysis Visualization}
 \textbf{Design Decision Rationale:}
-The shot map visualization approach mirrors the match overview methodology (see Section 5.2.1) but with player-specific filtering and context. This consistency ensures users can seamlessly transition between team-level and individual-level analysis while maintaining spatial accuracy through mplsoccer integration.
+The shot map visualization approach mirrors the match overview methodology (see Section~\ref{sec:shot_maps}) but with player-specific filtering and context. This consistency ensures users can seamlessly transition between team-level and individual-level analysis while maintaining spatial accuracy through mplsoccer integration.
 
 \subsubsection{Touch Heatmap Grid-Based Analysis}
 \textbf{Alternative Heatmap Approaches:}
@@ -539,7 +564,7 @@ Line charts effectively communicate temporal patterns and enable identification 
 
 \subsubsection{Event Heatmap Spatial Analysis}
 \textbf{Design Decision Rationale:}
-The spatial density approach mirrors the grid-based methodology established in player heatmaps (see Section 5.3.2) while adapting to event-level granularity. This consistency ensures analytical coherence across dashboard components.
+The spatial density approach mirrors the grid-based methodology established in player heatmaps (see Section~\ref{sec:touch_heatmap}) while adapting to event-level granularity. This consistency ensures analytical coherence across dashboard components.
 
 \subsubsection{Event Distribution Categorical Analysis}
 \textbf{Alternative Distribution Approaches:}
@@ -576,5 +601,66 @@ This project demonstrates the successful application of modern data science and 
 The modular architecture and careful attention to performance optimization ensure that the system can serve as a foundation for future developments in real-time analytics, machine learning integration, and enhanced user experiences. As football analytics continues to evolve, platforms like this dashboard will play an increasingly important role in translating complex data into actionable insights for coaches, analysts, and fans alike.
 
 The successful completion of this project validates the potential for sophisticated data visualization to democratize access to professional-level sports analytics, making advanced analytical capabilities accessible to broader audiences while maintaining the depth and accuracy required for professional applications.
+
+\newpage
+\appendix
+\section{Advanced Dashboard Visualizations}
+
+This appendix presents key visualizations generated by the Dashboard, demonstrating the practical implementation of the analytical frameworks discussed throughout this document. Each figure showcases different aspects of the football analytics platform.
+
+\subsection{Match Overview Analysis Visualizations}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Shots Map.png}
+    \caption{Shot Map Visualization analysis showing shot locations with size encoding proportional to xG values. Goals are distinguished from other shot outcomes through distinct visual markers, as described in Section~\ref{sec:shot_maps}.}
+    \label{fig:shot_map}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Spain Eng Pass Network.png}
+    \caption{Pass Network Analysis - Force-directed graph layout showing passing relationships between Spain and England players during their UEFA Euro 2024 encounter. Node sizes represent passing involvement, edge thickness indicates pass frequency, and positioning reflects average field positions, as described in Section~\ref{sec:pass_network}.}
+    \label{fig:pass_network}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth,height=0.8\textheight]{Formations.png}
+    \caption{Formation Analysis Visualization - Individual player activity density plots arranged in formation grid layout using mplsoccer's formation system. Each subplot shows KDE-based movement patterns derived from Ball Receipt events, with predefined formation-specific offsets preventing positional overlaps, as detailed in Section~\ref{sec:formations_analysis}.}
+    \label{fig:formations}
+\end{figure}
+
+\subsection{Team Performance Analysis Visualizations}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Team Comparison.png}
+    \caption{Team Performance Comparison Dashboard - Comprehensive side-by-side statistical analysis displaying key performance metrics including possession statistics, passing accuracy, shot efficiency, and defensive actions. The symmetric horizontal bar chart layout enables immediate tactical comparison between competing teams, as discussed in Section~\ref{sec:match_statistics}.}
+    \label{fig:team_comparison}
+\end{figure}
+\subsection{Player Performance Visualizations}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Player Performance Analysis.png}
+    \caption{Individual Player Performance Dashboard - Comprehensive player analysis featuring dual radar charts separating volume metrics (goals, shots, passes, dribbles) from success rate metrics (pass accuracy, shot accuracy, duel success). This innovative visualization approach prevents conflation of activity level with effectiveness, as explained in Section~\ref{sec:performance_metrics}.}
+    \label{fig:player_performance}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Touch Heatmap Player.png}
+    \caption{Player Touch Heatmap - Grid-based spatial analysis using a 6×5 zone system showing player activity distribution across the football pitch. The percentage-based quantification enables cross-player standardization and comparison, utilizing the methodology outlined in Section~\ref{sec:touch_heatmap}.}
+    \label{fig:touch_heatmap}
+\end{figure}
+\subsection{Event-Level Analysis Visualizations}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{All Events Heatmap.png}
+    \caption{Comprehensive Event Heatmap - Spatial density visualization of all match events plotted on an accurate football pitch representation using mplsoccer coordinates. The color intensity gradient indicates event frequency with darker regions showing higher activity concentration, implementing the spatial analysis framework described in Section~\ref{sec:event_heatmap}.}
+    \label{fig:events_heatmap}
+\end{figure}
+
+These visualizations collectively demonstrate the dashboard's capability to transform complex football event data into accessible, actionable insights while maintaining analytical rigor and professional visualization standards.
 
 \end{document}
